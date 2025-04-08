@@ -21,7 +21,7 @@ services:
 
   ollama_server:
     # image: ai_agent_project/ollama_server:latest # deepseek-r1:1.5b
-    image: langgraph_example-ollama_server:latest # llama3.2:1b
+    image: langgraph_example-ollama_server:latest # llama3.1:8b
     # build: ./ollama_server
     container_name: ollama_server
     ports:

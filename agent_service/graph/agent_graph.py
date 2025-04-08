@@ -4,12 +4,14 @@ import json
 from datetime import date
 from typing import Sequence, Annotated, TypedDict
 
-from langgraph.graph import StateGraph, END, add_messages
+from langgraph.graph import StateGraph, END, add_messages, MessagesState
 from langgraph.prebuilt import ToolNode
 from langchain_core.runnables import Runnable
 from langchain_core.messages import (
     SystemMessage, AIMessage, HumanMessage, BaseMessage
 )
+from langgraph_supervisor import create_supervisor
+from langgraph.prebuilt import create_react_agent
 
 from tools.weather_tool import WeatherTool
 from tools.calendar_tool import CalendarTool
@@ -22,9 +24,19 @@ class AgentState(TypedDict):
 
 class AgentGraph:
     def __init__(self, llm: Runnable):
-        self.system_prompt = f"You are a helpful assistant. Today's date is {today}."
-        self.bound_llm = llm.bind_tools(tools=[WeatherTool.weather_tool, CalendarTool.calendar_tool])
-        self.workflow = self._build_graph()
+        tools = [WeatherTool.weather_tool, CalendarTool.calendar_tool]
+        agent_node = create_react_agent(
+            llm,
+            tools
+        )
+        workflow = StateGraph(AgentState)
+        workflow.add_node("agent", agent_node)
+        workflow.set_entry_point("agent")
+        workflow.set_finish_point("agent")
+        self.workflow = workflow.compile()
+
+    def run(self, user_input: str):
+        return self.workflow.invoke({"messages": [HumanMessage(content=user_input)]})
 
     def _call_model(self, state: AgentState):
         messages = [SystemMessage(content=self.system_prompt)] + state["messages"]

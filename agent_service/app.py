@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from langchain_experimental.llms.ollama_functions import OllamaFunctions
+from langchain_ollama import ChatOllama
 from graph.agent_graph import AgentGraph
 from langchain_core.messages import AIMessage
 
@@ -14,9 +14,9 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 # Initialize Ollama LLM
-llm = OllamaFunctions(
+llm = ChatOllama(
     # model="deepseek-r1:1.5b",
-    model="llama3.2:1b",
+    model="llama3.1:8b",
     base_url="http://ollama_server:11434",
     temperature=0,
     format="json"
