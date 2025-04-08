@@ -1,4 +1,4 @@
-# LangGraph Application Setup
+# LangGraph Multi Agent Ollama Application
 
 LangGraph Ollama multi Agent application locally, and how to obtain an API key for LangSmith.
 
