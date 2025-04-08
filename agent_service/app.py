@@ -45,30 +45,15 @@ class OutputMessage(BaseModel):
 @app.post("/chat", response_model=OutputMessage)
 def chat(input_msg: InputMessage):
     try:
-        result = agent.run(input_msg.text)
-        msg = result["messages"][-1]
-        print(f"************************* Response: {msg}***********************")
-        
-        # Handle tool calls
-        if hasattr(msg, "tool_calls") and msg.tool_calls:
-            tool_responses = []
-            for tool_call in msg.tool_calls:
-                tool_responses.append(
-                    f"Tool call: {tool_call['name']} with args {tool_call['args']}"
-                )
-            return {"reply": "\n".join(tool_responses)}
-        
-        # Handle regular content
-        if isinstance(msg.content, str):
-            reply = msg.content
-        elif isinstance(msg.content, dict):
-            reply = msg.content.get("value", json.dumps(msg.content))
-        elif isinstance(msg.content, list):
-            reply = "\n".join(str(item) for item in msg.content)
-        else:
-            reply = str(msg.content)
+        msg = agent.run(input_msg.text)["messages"][-1]
+        logging.info(f"Response: {msg}")
 
-        return {"reply": reply}
+        if getattr(msg, "tool_calls", None):
+            return {"reply": "\n".join(
+                f"Tool call: {t['name']} with args {t['args']}" for t in msg.tool_calls
+            )}
+
+        return {"reply": str(msg.content)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
