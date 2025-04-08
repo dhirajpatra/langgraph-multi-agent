@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  agent_service:
+    build: ./agent_service
+    environment:
+      - PYTHONPATH=/app  # ✅ Ensure Python finds the module
+    command: uvicorn app:app --host 0.0.0.0 --port 5000
+    volumes:
+      - ./agent_service:/app
+    working_dir: /app
+    ports:
+      - "5000:5000"
+    depends_on:
+      - ollama_server
+    deploy:
+      resources:
+        limits:
+          cpus: '2.00'
+          memory: 4G
+
+  ollama_server:
+    image: ai_agent_project/ollama_server:latest
+    # image: langgraph_example-ollama_server:latest
+    # build: ./ollama_server
+    container_name: ollama_server
+    ports:
+      - "11434:11434"
+    volumes:
+      - .:/app
+      - ./ollama_data:/root/.ollama  # ✅ Changed from direct /root path to local folder
+      - ./ollama_models:/root/.ollama/models
+    entrypoint: ["/bin/bash", "/app/ollama_server/entrypoint.sh"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '2.00'
+          memory: 8G
+
+volumes:
+  llama_models:
+  ollama_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /root/.ollama
+      o: bind

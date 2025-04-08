@@ -1,0 +1,11 @@
+langchain
+langchain_ollama
+langgraph
+langchain-community
+python-dotenv
+requests
+langchain-openai
+fastapi
+uvicorn
+langsmith
+langchain-experimental
