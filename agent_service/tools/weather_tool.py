@@ -4,7 +4,7 @@ from langchain_core.tools import tool
 class WeatherTool:
     @staticmethod
     @tool
-    def weather_tool(location: str, unit: str = "celsius") -> str:
+    def weather_tool(location: str, unit: str = "celsius") -> dict:
         """
         Get the current weather for a given location.
 
@@ -12,6 +12,10 @@ class WeatherTool:
             location: The city and country to get the weather for.
 
         Returns:
-            A string containing the current weather information.
+            A dictionary containing the current weather information.
         """
-        return f"The weather in {location} is 28° {unit} and sunny."
+        return {
+            "location": location,
+            "unit": unit,
+            "weather": f"28° {unit} and sunny"
+        }

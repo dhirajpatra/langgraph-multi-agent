@@ -15,7 +15,8 @@ logging.basicConfig(level=logging.INFO)
 
 # Initialize Ollama LLM
 llm = OllamaFunctions(
-    model="deepseek-r1:1.5b",
+    # model="deepseek-r1:1.5b",
+    model="llama3.2:1b",
     base_url="http://ollama_server:11434",
     temperature=0,
     format="json"

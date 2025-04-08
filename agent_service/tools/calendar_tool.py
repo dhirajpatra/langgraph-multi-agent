@@ -6,15 +6,15 @@ from datetime import datetime
 class CalendarTool:
     @staticmethod
     @tool
-    def calendar_tool(date: str) -> str:
+    def calendar_tool(date: str) -> dict:
         """
         Check calendar for meetings on a specific date.
 
         Args:
-            date_str: The date in YYYY-MM-DD format.
+            date: The date in YYYY-MM-DD format.
 
         Returns:
-            The day of the week.
+            A dictionary with date, status, and meetings.
         """
         if not date:
             date = datetime.now().strftime("%Y-%m-%d")
@@ -26,11 +26,23 @@ class CalendarTool:
             with open(file_path, newline='') as csvfile:
                 reader = csv.DictReader(csvfile)
                 meetings = [row['meeting'] for row in reader if row['date'] == date]
-        except Exception:
-            return f"No calendar file or error reading it for {date}."
+        except Exception as e:
+            return {
+                "date": date,
+                "status": "error",
+                "message": f"Error reading calendar: {str(e)}",
+                "meetings": []
+            }
 
         if meetings:
-            meeting_list = ", ".join(meetings)
-            return f"You have the following meetings on {date}: {meeting_list}."
+            return {
+                "date": date,
+                "status": "found",
+                "meetings": meetings
+            }
         else:
-            return f"You have no meetings scheduled on {date}."
+            return {
+                "date": date,
+                "status": "none",
+                "meetings": []
+            }
