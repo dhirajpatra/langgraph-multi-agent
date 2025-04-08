@@ -1,6 +1,6 @@
 # LangGraph Application Setup
 
-This document outlines the steps to install and run your LangGraph application locally, and how to obtain an API key for LangSmith.
+LangGraph Ollama multi Agent application locally, and how to obtain an API key for LangSmith.
 
 ## Prerequisites
 
