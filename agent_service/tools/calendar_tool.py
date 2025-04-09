@@ -2,11 +2,13 @@
 from langchain_core.tools import tool
 import csv
 from datetime import datetime
+import logging
+logging.basicConfig(level=logging.INFO)
 
 class CalendarTool:
     @staticmethod
     @tool
-    def calendar_tool(date: str) -> dict:
+    def calendar_tool() -> dict:
         """
         Check calendar for meetings on a specific date.
 
@@ -16,8 +18,7 @@ class CalendarTool:
         Returns:
             A dictionary with date, status, and meetings.
         """
-        if not date:
-            date = datetime.now().strftime("%Y-%m-%d")
+        date = datetime.today().strftime("%Y-%m-%d")
 
         file_path = "calendar.csv"
         meetings = []

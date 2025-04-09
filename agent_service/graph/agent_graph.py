@@ -16,29 +16,28 @@ from langgraph.prebuilt import create_react_agent
 from tools.weather_tool import WeatherTool
 from tools.calendar_tool import CalendarTool
 
-today = date.today().isoformat()
 logging.basicConfig(level=logging.INFO)
+
 
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
 
 class AgentGraph:
     def __init__(self, llm: Runnable):
-        tools = [WeatherTool.weather_tool, CalendarTool.calendar_tool]
-        agent_node = create_react_agent(
-            llm,
-            tools
+        self._build_graph(llm)
+        self.bound_llm = llm
+        today = date.today().isoformat()
+        self.system_prompt = (
+            f"You are a helpful assistant. You can check the weather and calendar for meeting."
+            "You can also ask me to continue or end the conversation."
         )
-        workflow = StateGraph(AgentState)
-        workflow.add_node("agent", agent_node)
-        workflow.set_entry_point("agent")
-        workflow.set_finish_point("agent")
-        self.workflow = workflow.compile()
 
     def run(self, user_input: str):
         return self.workflow.invoke({"messages": [HumanMessage(content=user_input)]})
 
     def _call_model(self, state: AgentState):
+        today = date.today().isoformat()
+        logging.info(f"*****************  Today's date: {today}")
         messages = [SystemMessage(content=self.system_prompt)] + state["messages"]
         try:
             response = self.bound_llm.invoke(messages)
@@ -54,8 +53,7 @@ class AgentGraph:
                     weather = WeatherTool.weather_tool(location, unit)
                     return {"messages": [AIMessage(content=weather)]}
                 elif "calendar_tool" in parsed and parsed["calendar_tool"]:
-                    date = parsed.get("date", "")
-                    meetings = CalendarTool.calendar_tool(date)
+                    meetings = CalendarTool.calendar_tool()
                     return {"messages": [AIMessage(content=meetings)]}
             except Exception as tool_parse_error:
                 logging.warning(f"Tool parsing error: {tool_parse_error}")
@@ -69,12 +67,17 @@ class AgentGraph:
         last_msg = state["messages"][-1]
         return "continue" if getattr(last_msg, "tool_calls", None) else "end"
 
-    def _build_graph(self):
-        graph = StateGraph(AgentState)
-        graph.add_node("agent", self._call_model)
-        graph.set_entry_point("agent")
-        graph.set_finish_point("agent")
-        return graph.compile()
+    def _build_graph(self, llm: Runnable):
+        tools = [WeatherTool.weather_tool, CalendarTool.calendar_tool]
+        agent_node = create_react_agent(
+            llm,
+            tools
+        )
+        workflow = StateGraph(AgentState)
+        workflow.add_node("agent", agent_node)
+        workflow.set_entry_point("agent")
+        workflow.set_finish_point("agent")
+        self.workflow = workflow.compile()
 
     def run(self, user_input: str):
         return self.workflow.invoke({"messages": [HumanMessage(content=user_input)]})

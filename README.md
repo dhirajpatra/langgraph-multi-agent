@@ -6,43 +6,19 @@ LangGraph Ollama multi Agent application locally, and how to obtain an API key f
 
 * Python 3.11 or higher
 * pip (Python package installer)
-* A Google Cloud Platform (GCP) account (for Gemini API access)
+* A Google Cloud Platform (GCP) account (for Gemini API access) will be good
 * A LangSmith account (for tracing and debugging)
 
 ## Installation
 
-1.  **Clone the Repository (if applicable):**
+1.  **Fork and Clone the Repository (if applicable):**
 
     ```bash
     git clone <your_repository_url>
     cd <your_application_directory>
     ```
 
-2.  **Create a Virtual Environment (recommended):**
-
-    ```bash
-    python3.11 -m venv venv
-    source venv/bin/activate  # On macOS/Linux
-    venv\Scripts\activate  # On Windows
-    ```
-
-3.  **Install Dependencies:**
-
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-    Ensure your `requirements.txt` file includes the necessary packages, such as:
-
-    ```
-    langchain
-    langgraph
-    langchain-google-genai
-    langsmith
-    python-dotenv
-    ```
-
-4.  **Create an `.env` file:**
+2.  **Create an `.env` file:**
 
     Create a file named `.env` in the root directory of your project. This file will store your API keys and other sensitive information.
 
@@ -51,11 +27,12 @@ LangGraph Ollama multi Agent application locally, and how to obtain an API key f
     LANGCHAIN_API_KEY=<your_langsmith_api_key>
     LANGCHAIN_TRACING_V2="true"
     LANGCHAIN_PROJECT="Your_LangGraph_Project_Name"
+    Antyhing else api key etc
     ```
 
 ## Obtaining API Keys
 
-### 1. Google Gemini API Key
+### 1. Google Gemini API Key [optional]
 
 1.  **Go to Google AI Studio:**
     * [Google AI Studio](https://makersuite.google.com/)
@@ -83,9 +60,10 @@ LangGraph Ollama multi Agent application locally, and how to obtain an API key f
 
     ```bash
     cd <your_application_directory>
+    docker-compose up --build
     ```
 
-2.  **Run the application using the `langgraph` CLI:**
+2.  **Run the application using the `langgraph` CLI [optional]:**
 
     ```bash
     langgraph run --config langgraph.json
@@ -114,10 +92,20 @@ You can also run the application using Docker Compose, which will spin up both t
 * Start the services
 `docker-compose up --build`
 
+* To stop
+ctrl + c
+
+and
+
+`docker-compose down --remove-orphans`
+
+Always check the Docker images and containers. Keep your system and dangling images removed otherwise you system can freeze.
+
 * This will launch:
 
 🚀 agent_service: Your LangGraph agent on http://localhost:5000
 
 🧠 ollama_server: The local model server running on http://localhost:11434
 
-Use this for full isolation and easy multi-service orchestration.
+Use this for full isolation and easy multi-service orchestration. Recommended system at least 16 GB or 32 GB RAM, optional GPU, i7 or similar. As LLM will be downloaded into your docker container and it require around 5 GB. Higher system will run faster otherwise slow for response to keep patience. 
+
