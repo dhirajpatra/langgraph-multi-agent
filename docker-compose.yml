@@ -18,11 +18,14 @@ services:
         limits:
           cpus: '2.00'
           memory: 4G
+    networks:
+      - agent-network
 
   ollama_server:
     # image: ai_agent_project/ollama_server:latest # deepseek-r1:1.5b
-    image: langgraph_example-ollama_server:latest # llama3.1:8b
-    # build: ./ollama_server
+    image: langgraph_example-ollama_server:latest # llama3.1:8b or qwen2.5:7b-instruct
+    # build:
+    #   context: ./ollama_server
     container_name: ollama_server
     ports:
       - "11434:11434"
@@ -41,12 +44,13 @@ services:
         limits:
           cpus: '2.00'
           memory: 8G
+    networks:
+      - agent-network
 
 volumes:
-  llama_models:
   ollama_data:
-    driver: local
-    driver_opts:
-      type: none
-      device: /root/.ollama
-      o: bind
+  ollama_models:
+
+networks:
+  agent-network:
+    driver: bridge
