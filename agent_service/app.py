@@ -36,7 +36,7 @@ def chat(input_msg: InputMessage):
         messages = result.get("messages", [])
 
         if not messages:
-            logging.warning("No messages returned from supervisor.")
+            logging.warning("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@No messages returned from supervisor.")
             raise HTTPException(status_code=500, detail="No response from agent.")
 
         msg = messages[-1]
@@ -46,7 +46,7 @@ def chat(input_msg: InputMessage):
         return {"reply": str(msg.content) if msg.content else "No content returned."}
 
     except Exception as e:
-        logging.exception("Chat processing failed.")
+        logging.exception("*************** Chat processing failed.")
         raise HTTPException(status_code=500, detail="Unexpected server error.")
 
 @app.get("/")

@@ -8,14 +8,14 @@ from tools.weather_tool import WeatherTool
 from tools.calendar_tool import CalendarTool
 
 logging.basicConfig(level=logging.INFO)
+# model = "qwen2.5:7b-instruct"
+model = "llama3.1:8b"
 
 # Initialize LLM
 llm = ChatOllama(
-    model="llama3.1:8b",
+    model=model,
     base_url="http://ollama_server:11434",
-    temperature=0,
-    format="json",
-    timeout=300.0,
+    temperature=0.0,
 )
 
 # Define agents
@@ -23,26 +23,39 @@ weather_agent = create_react_agent(
     model=llm,
     tools=[WeatherTool.weather_tool],
     name="weather_agent",
-    prompt="You are a helpful assistant. You can check the weather of a location."
+    prompt="You are a helpful assistant with access to one tool: weather_agent. Call this tool to find the weather of a location. Do not engage in any other conversation or tasks."
 )
 
 calendar_agent = create_react_agent(
     model=llm,
     tools=[CalendarTool.calendar_tool],
     name="calendar_agent",
-    prompt="You are a helpful assistant. You can check the calendar for meetings."
+    prompt="You are a helpful assistant with access to one tool: calendar_agent. Call this tool to check the calendar for meetings. Do not engage in any other conversation or tasks."
 )
 
 # Supervisor agent
 supervisor = create_supervisor(
     [weather_agent, calendar_agent],
     model=llm,
-    prompt=(
-        "You are a team supervisor managing a weather assistant and a calendar assistant.\n"
-        "For weather-related queries (e.g., temperature, forecast, location weather), use weather_agent.\n"
-        "For calendar or meeting-related queries (e.g., upcoming events, meetings on a date), use calendar_agent.\n"
+    prompt = (
+        "You are a supervisor managing two specialized agents: `weather_agent` and `calendar_agent`.\n"
+        "\n"
+        "Your responsibilities:\n"
+        "1. If the user's query includes weather-related information (e.g., temperature, rain, forecast, location), use `weather_agent`.\n"
+        "2. If the user's query includes calendar-related information (e.g., meetings, events, schedules), use `calendar_agent`.\n"
+        "3. If the query includes **both**, you MUST call both agents one after another and combine their responses clearly.\n"
+        "\n"
+        "Guidelines:\n"
+        "- When using `weather_agent`, check the `status` field in the response:\n"
+        "  - If `report`, return the weather report.\n"
+        "  - If `error_message`, inform the user of the error.\n"
+        "- When using `calendar_agent`, follow the same logic.\n"
+        "\n"
+        "Do NOT ignore parts of a multi-intent query. Always answer each intent by calling the appropriate agent.\n"
+        "If the query doesn't relate to weather or calendar, state clearly that you cannot help with that.\n"
     ),
     output_mode="full_history",
+    # output_mode="last_message",
 )
 
 # Compile the graph
@@ -56,7 +69,10 @@ def llm_call(content: str) -> str:
             {"messages": [{"role": "user", "content": content}]}
         )
         if not response.get("messages"):
-            raise ValueError("Empty response from agent")
+            raise ValueError("************************** Empty response from agent *************************")
+        logging.info("========================== Response from agent: =======================")
+        for m in response["messages"]:
+            logging.info(m.pretty_print())
         return response
     except Exception as e:
         logging.error(f"Error in llm_call: {str(e)}")

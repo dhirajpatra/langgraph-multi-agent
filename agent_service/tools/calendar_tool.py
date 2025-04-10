@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 class CalendarTool:
     @staticmethod
     @tool
-    def calendar_tool() -> dict:
+    def calendar_tool() -> str:
         """
         Check calendar for meetings on a specific date.
 
@@ -16,7 +16,7 @@ class CalendarTool:
             date: The date in YYYY-MM-DD format.
 
         Returns:
-            A dictionary with date, status, and meetings.
+            A string with date, and meetings.
         """
         date = datetime.today().strftime("%Y-%m-%d")
 

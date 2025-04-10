@@ -20,7 +20,7 @@ LangGraph Ollama multi Agent application locally, and how to obtain an API key f
 
 2.  **Create an `.env` file:**
 
-    Create a file named `.env` in the root directory of your project. This file will store your API keys and other sensitive information.
+    Create a file named `.env` from env_copy in the root directory of your project. This file will store your API keys and other sensitive information.
 
     ```
     GOOGLE_API_KEY=<your_google_api_key>

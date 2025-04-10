@@ -18,10 +18,12 @@ services:
         limits:
           cpus: '2.00'
           memory: 4G
+    networks:
+      - agent-network
 
   ollama_server:
     # image: ai_agent_project/ollama_server:latest # deepseek-r1:1.5b
-    image: langgraph_example-ollama_server:latest # llama3.1:8b
+    image: langgraph_example-ollama_server:latest # llama3.1:8b or qwen2.5:7b-instruct
     # build:
     #   context: ./ollama_server
     container_name: ollama_server
@@ -42,6 +44,8 @@ services:
         limits:
           cpus: '2.00'
           memory: 8G
+    networks:
+      - agent-network
 
 volumes:
   ollama_data:
