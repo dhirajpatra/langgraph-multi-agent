@@ -69,6 +69,7 @@ class WeatherTool:
 
             # Best Practice: Handle potential errors gracefully within the tool
             if city_normalized in mock_weather_db:
+                logging.info(f"weather agent Weather data for {city} found in mock database.")
                 return mock_weather_db[city_normalized]
             else:
                 return {"status": "error", "error_message": f"Sorry, I don't have weather information for '{city}'."}

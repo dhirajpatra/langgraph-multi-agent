@@ -24,14 +24,13 @@ class CalendarTool:
         meetings = []
 
         try:
-            logging.info(f"+++++++++++++++++++++++++++++++++++Reading calendar from {file_path} for date: {date}")
             with open(file_path, newline='') as csvfile:
                 reader = csv.DictReader(csvfile)
                 meetings = [row['meeting'] for row in reader if row['date'] == date]
         except Exception as e:
             return f"Error reading calendar: {str(e)}"
-        logging.info(f"+++++++++++++++++++++++++++++++++++Meetings found: {meetings}")
         if meetings:
-            return f"Meetings on {date}: {', '.join(meetings)}"
+            logging.info(f"Calendar tool Meetings found on {date}: {meetings}")
+            return {"status": "success", "report": f"Meetings found on {date}: {meetings}"}
         else:
-            return f"No meetings found on {date}."
+            return {"status": "error", "error_message": f"Sorry, I don't have calendar information for '{date}'."}

@@ -49,7 +49,9 @@ supervisor = create_supervisor(
         "- When using `weather_agent`, check the `status` field in the response:\n"
         "  - If `report`, return the weather report.\n"
         "  - If `error_message`, inform the user of the error.\n"
-        "- When using `calendar_agent`, follow the same logic.\n"
+        "- When using `calendar_agent`, check the `status` field in the response:\n"
+        "  - If `report`, return the meeting details.\n"
+        "  - If `error_message`, inform the user of the error.\n"
         "\n"
         "Do NOT ignore parts of a multi-intent query. Always answer each intent by calling the appropriate agent.\n"
         "If the query doesn't relate to weather or calendar, state clearly that you cannot help with that.\n"
@@ -69,8 +71,8 @@ def llm_call(content: str) -> str:
             {"messages": [{"role": "user", "content": content}]}
         )
         if not response.get("messages"):
-            raise ValueError("************************** Empty response from agent *************************")
-        logging.info("========================== Response from agent: =======================")
+            raise ValueError("Empty response from agent")
+
         for m in response["messages"]:
             logging.info(m.pretty_print())
         return response
