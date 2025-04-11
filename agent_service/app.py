@@ -32,21 +32,10 @@ class OutputMessage(BaseModel):
 @app.post("/chat", response_model=OutputMessage)
 def chat(input_msg: InputMessage):
     try:
-        result = llm_call(content=input_msg.text)
-        messages = result.get("messages", [])
-
-        if not messages:
-            logging.warning("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@No messages returned from supervisor.")
-            raise HTTPException(status_code=500, detail="No response from agent.")
-
-        msg = messages[-1]
-        logging.info(f"Response content: {msg.content}")
-        logging.debug(f"Full message object: {msg}")
-
-        return {"reply": str(msg.content) if msg.content else "No content returned."}
-
+        reply = llm_call(content=input_msg.text)
+        return {"reply": reply}
     except Exception as e:
-        logging.exception("*************** Chat processing failed.")
+        logging.exception("Chat processing failed.")
         raise HTTPException(status_code=500, detail="Unexpected server error.")
 
 @app.get("/")

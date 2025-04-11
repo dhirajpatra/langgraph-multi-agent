@@ -1,9 +1,12 @@
 # agent_service/graph/agent_graph.py
 import logging
+import uuid
 from langchain_ollama import ChatOllama
 from langgraph_supervisor import create_supervisor
 from langgraph.prebuilt import create_react_agent
 from langgraph.graph import MessagesState
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.store.memory import InMemoryStore
 from tools.weather_tool import WeatherTool
 from tools.calendar_tool import CalendarTool
 
@@ -56,26 +59,37 @@ supervisor = create_supervisor(
         "Do NOT ignore parts of a multi-intent query. Always answer each intent by calling the appropriate agent.\n"
         "If the query doesn't relate to weather or calendar, state clearly that you cannot help with that.\n"
     ),
-    output_mode="full_history",
-    # output_mode="last_message",
+    # output_mode="full_history",
+    output_mode="last_message",
 )
 
+# Initialize memory components
+store = InMemoryStore()
+checkpointer = InMemorySaver()
+
 # Compile the graph
-compiled_agent = supervisor.compile()
+compiled_agent = supervisor.compile(
+    checkpointer=checkpointer,
+    store=store,
+)
 
 # Nodes
 def llm_call(content: str) -> str:
     """LLM decides whether to call a tool or not"""
+    session_id = str(uuid.uuid4())
+    logging.info(f"Session ID: {session_id}")
     try:
         response = compiled_agent.invoke(
-            {"messages": [{"role": "user", "content": content}]}
+            {"messages": [{"role": "user", "content": content}]},
+            config={"configurable": {"thread_id": session_id}}
         )
         if not response.get("messages"):
             raise ValueError("Empty response from agent")
 
         for m in response["messages"]:
             logging.info(m.pretty_print())
-        return response
+        final_output = response.get("messages")[-1].content if "messages" in response else response
+        return final_output
     except Exception as e:
         logging.error(f"Error in llm_call: {str(e)}")
         raise
