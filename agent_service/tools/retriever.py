@@ -5,6 +5,7 @@ from langchain_community.document_loaders import WebBaseLoader
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain.tools.retriever import create_retriever_tool
 
 logging.basicConfig(level=logging.INFO)
 

@@ -22,7 +22,7 @@ class WeatherTool:
             A dictionary containing the current weather information.
         """
         weather_data = WeatherTool.get_weather(location, unit)
-        return {"status": "success", "weather_report": weather_data}
+        return {"status": "success", "report": weather_data}
 
     @staticmethod
     def get_weather(city: str, unit: str) -> str:

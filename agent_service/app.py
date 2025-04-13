@@ -32,6 +32,7 @@ class OutputMessage(BaseModel):
 @app.post("/chat", response_model=OutputMessage)
 def chat(input_msg: InputMessage):
     try:
+        logging.info(f"Received message: {input_msg.text}")
         reply = llm_call(content=input_msg.text)  # Ensure this is a valid string or dict
         return {"reply": reply}
     except Exception as e:
