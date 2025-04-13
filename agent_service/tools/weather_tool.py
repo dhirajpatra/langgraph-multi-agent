@@ -11,7 +11,7 @@ load_dotenv()
 class WeatherTool:
     @staticmethod
     @tool
-    def weather_tool(location: str, unit: str = "celsius") -> str:
+    def weather_tool(location: str, unit: str = "celsius") -> dict:
         """
         Get the current weather for a given location.
 
@@ -21,11 +21,8 @@ class WeatherTool:
         Returns:
             A dictionary containing the current weather information.
         """
-        return (
-            f"Location: {location}\n"
-            f"Unit: {unit}\n"
-            f"Weather: {WeatherTool.get_weather(location, unit)}"
-        )
+        weather_data = WeatherTool.get_weather(location, unit)
+        return {"status": "success", "weather_report": weather_data}
 
     @staticmethod
     def get_weather(city: str, unit: str) -> str:

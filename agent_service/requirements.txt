@@ -10,3 +10,9 @@ python-dotenv
 requests
 fastapi
 uvicorn
+tiktoken 
+langchainhub 
+chromadb 
+langchain-chroma>=0.1.2
+langchain-text-splitters 
+beautifulsoup4
