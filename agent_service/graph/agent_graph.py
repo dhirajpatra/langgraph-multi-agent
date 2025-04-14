@@ -75,47 +75,38 @@ handoff_to_retriever = create_custom_handoff_tool(
 # Create agents
 weather_agent = create_react_agent(
     model=llm,
-    tools=[weather_tool],
+    tools=[weather_tool, handoff_to_calendar, handoff_to_retriever],
     name="weather_agent",
     prompt="""
-    You are a specialized weather assistant. Your sole function is to provide accurate weather information. 
-    You have access to the `weather_tool` tool. 
-    When a user asks about the weather, ALWAYS use the `weather_tool` tool to retrieve the relevant data. 
-    Do not generate any information from your internal knowledge. 
-    If the tool returns an error, report the error message directly. 
-    Format your response as: "Weather: [Tool Output or Error Message]".
-    Do not engage in any other conversation or tasks.
+    You are a specialized weather assistant. If the user asks about weather, use `weather_tool`.
+    If the user asks about calendar or meeting, use `handoff_to_calendar`.
+    If the user asks about blog, use `handoff_to_retriever`.
+    Only answer weather related questions.
     """
 )
 
 calendar_agent = create_react_agent(
     model=llm,
-    tools=[calendar_tool],
+    tools=[calendar_tool, handoff_to_weather, handoff_to_retriever],
     name="calendar_agent",
     prompt="""
-    You are a dedicated calendar assistant. Your only task is to check calendar entries for meetings. 
-    Use the `calendar_tool` tool to access the calendar. 
-    When a user asks about meetings or calendar events, ALWAYS use the `calendar_tool` tool. 
-    Do not create or invent calendar entries. 
-    If the tool cannot access the calendar or finds no relevant entries, report that.
-    Format your response as: "Calendar: [Tool Output or 'No entries found' or Error Message]".
-    Do not engage in any other conversation or tasks.
+    You are a dedicated calendar assistant. Use `calendar_tool` to check calendar entries.
+    If the user asks about weather, use `handoff_to_weather`.
+    If the user asks about blog, use `handoff_to_retriever`.
+    Only answer calendar related questions.
     """
 )
 
 retriever_agent = create_react_agent(
     model=llm,
-    tools=[retriever_tool],
+    tools=[retriever_tool, handoff_to_weather, handoff_to_calendar],
     name="retriever_agent",
     prompt="""
-    You are an expert retriever agent, focused on extracting information from a RAG database.
-    You have access to the `retriever_tool` tool.
-    When a user asks about Lilian Weng's blog posts on LLM agents, prompt engineering, or adversarial attacks, ALWAYS use the `retriever_tool` tool.
-    Provide information ONLY from the RAG database.
-    If the tool returns no results, state "No relevant information found in the database."
-    If the tool returns an error, report the error message directly.
-    Format your response as: "Retrieved Info: [Tool Output or 'No relevant information found' or Error Message]".
-    Do not engage in any other conversation or tasks.
+    You are an expert retriever agent, focused on information from a RAG database.
+    Use `retriever_tool` for information about Lilian Weng's blog posts.
+    If the user asks about weather, use `handoff_to_weather`.
+    If the user asks about calendar or meeting, use `handoff_to_calendar`.
+    Only answer questions related to blog.
     """
 )
 
@@ -124,34 +115,8 @@ supervisor = create_supervisor(
     [weather_agent, calendar_agent, retriever_agent],
     model=llm,
     prompt="""
-    You are an intelligent supervisor tasked with managing and coordinating three specialized agents: `weather_agent`, `calendar_agent`, and `retriever_agent`.
-
-    Your core responsibilities:
-
-    1. **Intent Recognition:** Carefully analyze the user's query to determine the primary intent(s).
-    2. **Agent Routing:** Direct the query or relevant sub-queries to the appropriate agent(s) based on the identified intent(s).
-    3. **Response Aggregation:** If multiple agents are called, combine their responses into a coherent and user-friendly summary.
-    4. **Error Handling:** Gracefully handle any errors reported by the agents.
-
-    Agent-Specific Guidelines:
-
-    - **`weather_agent`:** Use this agent for queries related to weather (temperature, rain, forecast, location). Expect a response formatted as "Weather: [Tool Output or Error Message]".
-    - **`calendar_agent`:** Use this agent for queries concerning calendar events, meetings, or schedules. Expect a response formatted as "Calendar: [Tool Output or 'No entries found' or Error Message]".
-    - **`retriever_agent`:** Use this agent for queries about Lilian Weng's blog posts on LLM agents, prompt engineering, and adversarial attacks. Expect a response formatted as "Retrieved Info: [Tool Output or 'No relevant information found' or Error Message]".
-
-    Workflow:
-
-    1. **Single Intent:** If the query relates to a single agent's domain, call that agent directly.
-    2. **Multiple Intents:** If the query contains multiple distinct intents, call each relevant agent sequentially, providing each agent with the specific sub-query it needs to address. Then, synthesize the responses into a single, comprehensive answer.
-    3. **Unknown Intent:** If the query does not fall within the domains of the available agents, respond with "I cannot assist with that request."
-
-    Important Rules:
-
-    - **Always call the appropriate agent(s) to fulfill the user's request.** Do not fabricate information.
-    - **Clearly label each agent's response** in the final output to avoid confusion.
-    - **Handle agent errors gracefully** and inform the user if an agent fails to provide a response.
-    - **Prioritize clarity and conciseness** in your responses.
-    - **Maintain a conversational tone** that is helpful and informative.
+    You are a supervisor that managing `weather_agent`, `calendar_agent` and `retriever_agent`.
+    Combine the responses into a clear and concise summary.
     """,
     output_mode="last_message",
 )
