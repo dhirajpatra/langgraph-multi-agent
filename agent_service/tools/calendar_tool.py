@@ -6,7 +6,7 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-@tool("check_calendar_today")
+@tool("calendar_tool", description="Check calendar for meetings on today's date.")
 def calendar_tool() -> dict:
     """
     Check calendar for meetings on today's date.

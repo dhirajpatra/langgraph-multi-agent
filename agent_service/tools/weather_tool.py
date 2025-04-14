@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 logging.basicConfig(level=logging.INFO)
 load_dotenv()
 
-@tool("weather_tool")
+@tool("weather_tool", description="Get the current weather for a given location.")
 def weather_tool(location: str, unit: str = "celsius") -> dict:
     """
     Get the current weather for a given location.

@@ -9,14 +9,14 @@ logging.basicConfig(level=logging.INFO)
 # Create retriever tool instance globally
 retriever_tool_instance = create_retriever_tool(
     retriever,
-    name="retrieve_blog_posts",
+    name="retriever_tool",
     description=(
         "Search and return information about Lilian Weng blog posts "
         "on LLM agents, prompt engineering, and adversarial attacks on LLMs."
     ),
 )
 
-@tool("retrieve_blog_posts")
+@tool("retriever_tool", description="Search blog posts based on user query.")
 def retriever_tool(query: str) -> dict:
     """
     Tool to search blog posts based on user query.
