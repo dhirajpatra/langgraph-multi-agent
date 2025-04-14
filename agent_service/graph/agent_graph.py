@@ -1,17 +1,18 @@
 # agent_service/graph/agent_graph.py
 import logging
 import uuid
+from typing import List, Literal
 from langchain_ollama import ChatOllama
-from langchain_core.messages import HumanMessage, BaseMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langgraph.graph import MessageGraph, END
 from langgraph_supervisor import create_supervisor
-from langgraph.graph import MessagesState, StateGraph, END
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.store.memory import InMemoryStore
 from langgraph.prebuilt import create_react_agent
-from tools.weather_tool import WeatherTool
-from tools.calendar_tool import CalendarTool
-from tools.retriever_tool import RetrieverTool
+from tools.weather_tool import weather_tool
+from tools.calendar_tool import calendar_tool
+from tools.retriever_tool import retriever_tool
 
 logging.basicConfig(level=logging.INFO)
 
@@ -23,29 +24,30 @@ llm = ChatOllama(
     temperature=0.0,
 )
 
+# Create agents
 weather_agent = create_react_agent(
     model=llm,
-    tools=[WeatherTool.weather_tool],
+    tools=[weather_tool],
     name="weather_agent",
-    prompt="You are a helpful weather assistant with access to one tool: `weather_tool`. Use the weather data from the tool only do not generate response from imagination. Call this tool to find the weather of a location. Do not engage in any other conversation or tasks."
+    prompt="You are a helpful weather assistant. You have access to one tool: `weather_tool`. Call this tool to get the weather information. DO NOT hallucinate or generate from your knowledge. Do not engage in any other conversation or tasks."
 )
 
 calendar_agent = create_react_agent(
     model=llm,
-    tools=[CalendarTool.calendar_tool],
+    tools=[calendar_tool],
     name="calendar_agent",
-    prompt="You are a helpful calendar assistant with access to one tool: `calendar_tool`. Call this tool to check the calendar.csv file for meetings. Do not generate by imagination. Do not engage in any other conversation or tasks."
+    prompt="You are a helpful calendar assistant with access to one tool: `calendar_tool`. Call this tool to check the calendar file for meetings. DO NOT generate by imagination or hallucinate. Do not engage in any other conversation or tasks."
 )
 
 retriever_agent = create_react_agent(
     model=llm,
-    tools=[RetrieverTool.retriever_tool],
+    tools=[retriever_tool],
     name="retriever_agent",
     prompt=(
         "You are a helpful RAG-based retriever agent with access to one tool: `retriever_tool`. "
-        "Call this tool to search and return information only from the RAG databae about Lilian Weng's blog posts on LLM agents, "
+        "Call this tool to search and return information only from the RAG database about Lilian Weng's blog posts on LLM agents, "
         "prompt engineering, and adversarial attacks on LLMs."
-        "Do not engage in any other conversation or tasks."
+        "DO NOT engage in any other conversation or tasks."
     )
 )
 

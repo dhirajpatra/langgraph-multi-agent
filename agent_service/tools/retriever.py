@@ -64,19 +64,7 @@ else:
     )
 
 retriever = vectorstore.as_retriever()
-retriever.search_kwargs["k"] = 3
-retriever.search_kwargs["search_type"] = "similarity"
-retriever.search_kwargs["search_kwargs"] = {
-    "nprobe": 10,
-    "distance_metric": "cosine",
-    "ef_search": 512,
-    "ef_construction": 512,
-    "m": 16,
-    "num_partitions": 1,
-    "num_subvectors": 8,
-    "num_neighbors": 10,
-    "num_candidates": 100,
-    "num_threads": 4,
-    "num_results": 10,
-    "num_probes": 10,
+retriever.search_kwargs = {
+    "k": 3,
+    "search_type": "similarity"
 }
