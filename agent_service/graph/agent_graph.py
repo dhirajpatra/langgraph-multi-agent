@@ -27,14 +27,14 @@ weather_agent = create_react_agent(
     model=llm,
     tools=[WeatherTool.weather_tool],
     name="weather_agent",
-    prompt="You are a helpful weather assistant with access to one tool: `weather_tool`. Call this tool to find the weather of a location. Do not engage in any other conversation or tasks."
+    prompt="You are a helpful weather assistant with access to one tool: `weather_tool`. Use the weather data from the tool only do not generate response from imagination. Call this tool to find the weather of a location. Do not engage in any other conversation or tasks."
 )
 
 calendar_agent = create_react_agent(
     model=llm,
     tools=[CalendarTool.calendar_tool],
     name="calendar_agent",
-    prompt="You are a helpful calendar assistant with access to one tool: `calendar_tool`. Call this tool to check the calendar for meetings. Do not engage in any other conversation or tasks."
+    prompt="You are a helpful calendar assistant with access to one tool: `calendar_tool`. Call this tool to check the calendar.csv file for meetings. Do not generate by imagination. Do not engage in any other conversation or tasks."
 )
 
 retriever_agent = create_react_agent(
@@ -43,7 +43,7 @@ retriever_agent = create_react_agent(
     name="retriever_agent",
     prompt=(
         "You are a helpful RAG-based retriever agent with access to one tool: `retriever_tool`. "
-        "Call this tool to search and return information about Lilian Weng's blog posts on LLM agents, "
+        "Call this tool to search and return information only from the RAG databae about Lilian Weng's blog posts on LLM agents, "
         "prompt engineering, and adversarial attacks on LLMs."
         "Do not engage in any other conversation or tasks."
     )
@@ -60,7 +60,7 @@ supervisor = create_supervisor(
         "1. If the user's query includes weather-related information (e.g., temperature, rain, forecast, location), use `weather_agent`.\n"
         "2. If the user's query includes calendar-related information (e.g., meetings, events, schedules), use `calendar_agent`.\n"
         "3. If the user's query includes information about blog posts on LLM agents, prompt engineering, and adversarial attacks on LLMs, use `retriever_agent`.\n"
-        "4. If the query includes **all**, you MUST call all agents one after another and combine their responses clearly.\n"
+        "4. If the query includes **all**, you MUST call all agents one after another with single specific question to each of them and combine their responses clearly.\n"
         "\n"
         "Guidelines:\n"
         "- When using `weather_agent`, check the `status` field in the response:\n"
@@ -74,6 +74,7 @@ supervisor = create_supervisor(
         "  - If `error_message`, inform the user of the error.\n"
         "\n"
         "Do NOT ignore parts of a multi-intent query. Always answer each intent by calling the appropriate agent.\n"
+        "Do NOT generate responses from imagination or your general knowledge. Always call the appropriate agent to get the information.\n"
         "If the query doesn't relate to weather or calendar, state clearly that you cannot help with that.\n"
     ),
     # output_mode="full_history",
