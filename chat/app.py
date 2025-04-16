@@ -11,7 +11,7 @@ st.title("🧠 Krishi GPT Chat")
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Hi there! Ask me anything."}
+        {"role": "assistant", "content": "Hi how can I help you today? you can ask me weather, market."}
     ]
 
 # Display chat messages

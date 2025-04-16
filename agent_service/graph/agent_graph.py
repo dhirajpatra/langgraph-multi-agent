@@ -78,10 +78,10 @@ weather_agent = create_react_agent(
     tools=[weather_tool, handoff_to_calendar, handoff_to_retriever],
     name="weather_agent",
     prompt="""
-    You are a specialized weather assistant. If the user asks about weather, use `weather_tool`.
-    If the user asks about calendar or meeting, use `handoff_to_calendar`.
-    If the user asks about blog, use `handoff_to_retriever`.
-    Only answer weather related questions.
+    You are a specialized weather assistant. Always respond using the `weather_tool` only. 
+    Do not generate any additional explanation or response. Return only the tool output.
+    If asked about calendar or meeting, use `handoff_to_calendar`.
+    If asked about blog, use `handoff_to_retriever`.
     """
 )
 
@@ -90,10 +90,10 @@ calendar_agent = create_react_agent(
     tools=[calendar_tool, handoff_to_weather, handoff_to_retriever],
     name="calendar_agent",
     prompt="""
-    You are a dedicated calendar assistant. Use `calendar_tool` to check calendar entries.
-    If the user asks about weather, use `handoff_to_weather`.
-    If the user asks about blog, use `handoff_to_retriever`.
-    Only answer calendar related questions.
+    You are a calendar assistant. Always respond using the `calendar_tool` only. 
+    Do not generate any additional response. Use handoff when needed.
+    If asked about weather, use `handoff_to_weather`.
+    If asked about blog, use `handoff_to_retriever`.
     """
 )
 
@@ -102,11 +102,10 @@ retriever_agent = create_react_agent(
     tools=[retriever_tool, handoff_to_weather, handoff_to_calendar],
     name="retriever_agent",
     prompt="""
-    You are an expert retriever agent, focused on information from a RAG database.
-    Use `retriever_tool` for information about Lilian Weng's blog posts.
-    If the user asks about weather, use `handoff_to_weather`.
+    You are a retriever assistant. Always respond using the `retriever_tool` only.
+    Do not generate any additional response. Use handoff when needed.
+    If asked about weather, use `handoff_to_weather`.
     If the user asks about calendar or meeting, use `handoff_to_calendar`.
-    Only answer questions related to blog.
     """
 )
 
@@ -116,9 +115,10 @@ supervisor = create_supervisor(
     model=llm,
     prompt="""
     You are a supervisor that managing `weather_agent`, `calendar_agent` and `retriever_agent`.
-    Combine the responses into a clear and concise summary.
+    Combine the responses from all these agents into a clear and concise summary as final response.
     """,
-    output_mode="last_message",
+    # output_mode="last_message",
+    output_mode="full_history",
 )
 
 # Initialize memory components
@@ -133,7 +133,6 @@ compiled_agent = supervisor.compile(
 
 # Node Call (Synchronous)
 def llm_call(content: str) -> str:
-    """LLM decides whether to call a tool or not"""
     session_id = str(uuid.uuid4())
     logging.info(f"Session ID: {session_id}")
     try:
@@ -141,13 +140,28 @@ def llm_call(content: str) -> str:
             {"messages": [{"role": "user", "content": content}]},
             config={"configurable": {"thread_id": session_id}}
         )
+        logging.info(f"************************** Response: {response} **************************")
+
         if not response.get("messages"):
             raise ValueError("Empty response from agent")
 
+        combined_output = []
         for m in response["messages"]:
-            logging.info(m.pretty_print())
-        final_output = response.get("messages")[-1].content if "messages" in response else response
-        return final_output
+            try:
+                if hasattr(m, "pretty_print"):
+                    logging.info(m.pretty_print())
+                else:
+                    logging.info(f"Message: {m}")
+                if hasattr(m, "content"):
+                    combined_output.append(m.content)
+                elif isinstance(m, dict) and "content" in m:
+                    combined_output.append(m["content"])
+            except Exception as log_err:
+                logging.warning(f"Error while logging message: {log_err}")
+                logging.info(f"Raw Message: {m}")
+
+        return "\n".join(combined_output)
     except Exception as e:
         logging.error(f"Error in llm_call: {str(e)}")
         raise
+
