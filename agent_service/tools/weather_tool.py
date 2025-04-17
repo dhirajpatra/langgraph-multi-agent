@@ -1,58 +1,44 @@
 # tools/weather_tool.py
+
 from langchain_core.tools import tool
+from pydantic import BaseModel, Field
 import logging
 from dotenv import load_dotenv
+import os
+# import requests
+# from urllib.parse import quote
 
 logging.basicConfig(level=logging.INFO)
 load_dotenv()
 
-@tool("weather_tool", description="Get the current weather for a given location.")
-def weather_tool(location: str, unit: str = "celsius") -> dict:
+
+class WeatherToolArgs(BaseModel):
+    location: str = Field(description="The city and country to get the weather for.")
+    unit: str = Field(default="celsius", description="The unit of temperature (default is Celsius).")
+
+
+@tool(args_schema=WeatherToolArgs, description="Get the current weather for a given location.")
+def weather_tool(location: str, unit: str = "celsius", tool_call_id: str | None = None) -> dict:
     """
     Get the current weather for a given location.
-
-    Args:
-        location: The city and country to get the weather for.
-        unit: The unit of temperature (default is Celsius).
-
-    Returns:
-        A dictionary containing the current weather information.
     """
     try:
         weather_data = get_weather(location, unit)
         return {"status": "success", "report": weather_data}
     except Exception as e:
-        logging.error(f"Error in weather_tool: {e}")
+        logging.error(f"[weather_tool] Error: {e}")
         return {"status": "error", "error_message": f"Error fetching weather: {str(e)}"}
+
 
 def get_weather(city: str, unit: str) -> str:
     """
     Fetch the weather information for the specified city.
-    Here, we simulate the weather data for simplicity.
+    Simulated weather data returned if real API call is not used.
     """
-    logging.info(f"--- Tool: get_weather called for city: {city} ---")
-    city_normalized = city.lower().replace(" ", "")  # Normalize the input
-    # url = f"https://weather.indianapi.in/india/weather?city={quote(city)}"
-    # headers = {
-    #     "x-api-key": os.getenv("WEATHER_API_KEY"),
-    # }
-    # response = requests.get(url, headers=headers)
-    # if response.status_code == 200:
-    #     data = response.json()
-    #     today_forecast = data["weather"]["forecast"][0]
-    #     max_temp = today_forecast["max_temp"]
-    #     min_temp = today_forecast["min_temp"]
-    #     description = today_forecast["description"]
+    logging.info(f"[get_weather] Called for city: {city} (unit: {unit})")
+    city_normalized = city.lower().replace(" ", "")
 
-    #     weather_summary = (
-    #         f"The current weather in Bengaluru, India is {description} "
-    #         f"with a max temperature of {max_temp}°C and min of {min_temp}°C."
-    #     )
-    #     return weather_summary
-    # else:
-    #     return f"Failed to fetch weather data. Status code: {response.status_code}"
-    # Best Practice: Log tool execution for easier debugging
-            # Mock weather data for simplicity (in place of real API calls)
+    # Mock data for development/testing
     mock_weather_db = {
         "newyork": "The weather in New York is sunny with a temperature of 25°C.",
         "london": "It's cloudy in London with a temperature of 15°C.",
@@ -66,10 +52,29 @@ def get_weather(city: str, unit: str) -> str:
         "mumbai": "It's cloudy in Mumbai with a temperature of 30°C.",
     }
 
-    # Return the weather info if city exists in mock data
     if city_normalized in mock_weather_db:
-        logging.info(f"Weather data for {city} found in mock database.")
+        logging.info(f"[get_weather] Found mock weather data for: {city}")
         return mock_weather_db[city_normalized]
     else:
-        logging.warning(f"No weather information for {city}.")
+        logging.warning(f"[get_weather] No mock weather data for: {city}")
         return f"Sorry, I don't have weather information for '{city}'."
+
+    # Uncomment below to enable real API integration
+    """
+    try:
+        url = f"https://weather.indianapi.in/india/weather?city={quote(city)}"
+        headers = {"x-api-key": os.getenv("WEATHER_API_KEY")}
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            forecast = data["weather"]["forecast"][0]
+            return (
+                f"The current weather in {city.title()}, India is {forecast['description']} "
+                f"with a max temperature of {forecast['max_temp']}°C and min of {forecast['min_temp']}°C."
+            )
+        else:
+            return f"Failed to fetch weather data. Status code: {response.status_code}"
+    except Exception as api_error:
+        logging.error(f"[get_weather] API error: {api_error}")
+        return f"API error: {api_error}"
+    """

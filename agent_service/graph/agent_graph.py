@@ -1,19 +1,19 @@
 # agent_service/graph/agent_graph.py
+
 import logging
 import uuid
 from typing import List, Literal, Annotated
 from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.tools import tool, BaseTool, InjectedToolCallId
-from langchain_core.messages import ToolMessage
-from langgraph.graph import MessageGraph, END
-from langgraph_supervisor import create_supervisor
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.store.memory import InMemoryStore
 from langgraph.prebuilt import create_react_agent
+from langgraph_supervisor import create_supervisor
+from langchain_core.tools import tool, BaseTool, InjectedToolCallId
 from langgraph.types import Command
 from langgraph.prebuilt import InjectedState
+from langchain_core.messages import ToolMessage
 from tools.weather_tool import weather_tool
 from tools.calendar_tool import calendar_tool
 from tools.retriever_tool import retriever_tool
@@ -28,28 +28,62 @@ llm = ChatOllama(
     temperature=0.0,
 )
 
+# Create specialized agents
+weather_agent = create_react_agent(
+    model=llm,
+    tools=[weather_tool],
+    name="weather_agent",
+    prompt="""
+    You are a specialized weather assistant. Always respond using the `weather_tool` only. 
+    Do not generate any additional explanation or response. Return only the tool output.
+    """
+)
+
+calendar_agent = create_react_agent(
+    model=llm,
+    tools=[calendar_tool],
+    name="calendar_agent",
+    prompt="""
+    You are a calendar assistant. Always respond using the `calendar_tool` only. 
+    Do not generate any additional response. Return only the tool output.
+    """
+)
+
+retriever_agent = create_react_agent(
+    model=llm,
+    tools=[retriever_tool],
+    name="retriever_agent",
+    prompt="""
+    You are a retriever assistant. Always respond using the `retriever_tool` only.
+    Do not generate any additional response. Return only the tool output.    
+    """
+)
+
 # Custom Handoff Tool
 def create_custom_handoff_tool(*, agent_name: str, name: str | None, description: str | None) -> BaseTool:
-
     @tool(name, description=description)
     def handoff_to_agent(
-        task_description: Annotated[str, "Detailed description of what the next agent should do, including all of the relevant context."],
         state: Annotated[dict, InjectedState],
         tool_call_id: Annotated[str, InjectedToolCallId],
     ):
+        # Get task description from the state (you should store it somewhere earlier in the flow)
+        task_description = state.get("task_description", "")
+
+        # Ensure the key exists in state
         tool_message = ToolMessage(
             content=f"Successfully transferred to {agent_name}",
             name=name,
             tool_call_id=tool_call_id,
         )
-        messages = state["messages"]
+        messages = state.get("messages", [])
+        
         return Command(
             goto=agent_name,
             graph=Command.PARENT,
             update={
                 "messages": messages + [tool_message],
                 "active_agent": agent_name,
-                "task_description": task_description,
+                "task_description": task_description,  # Store task_description in the state
             },
         )
 
@@ -72,67 +106,38 @@ handoff_to_retriever = create_custom_handoff_tool(
     description="Handoff control to the retriever agent.",
 )
 
-# Create agents
-weather_agent = create_react_agent(
-    model=llm,
-    tools=[weather_tool, handoff_to_calendar, handoff_to_retriever],
-    name="weather_agent",
-    prompt="""
-    You are a specialized weather assistant. Always respond using the `weather_tool` only. 
-    Do not generate any additional explanation or response. Return only the tool output.
-    If asked about calendar or meeting, use `handoff_to_calendar`.
-    If asked about blog, use `handoff_to_retriever`.
-    """
-)
-
-calendar_agent = create_react_agent(
-    model=llm,
-    tools=[calendar_tool, handoff_to_weather, handoff_to_retriever],
-    name="calendar_agent",
-    prompt="""
-    You are a calendar assistant. Always respond using the `calendar_tool` only. 
-    Do not generate any additional response. Use handoff when needed.
-    If asked about weather, use `handoff_to_weather`.
-    If asked about blog, use `handoff_to_retriever`.
-    """
-)
-
-retriever_agent = create_react_agent(
-    model=llm,
-    tools=[retriever_tool, handoff_to_weather, handoff_to_calendar],
-    name="retriever_agent",
-    prompt="""
-    You are a retriever assistant. Always respond using the `retriever_tool` only.
-    Do not generate any additional response. Use handoff when needed.
-    If asked about weather, use `handoff_to_weather`.
-    If the user asks about calendar or meeting, use `handoff_to_calendar`.
-    """
-)
-
-# Supervisor agent
+# Supervisor agent using standard LangGraph supervisor
 supervisor = create_supervisor(
-    [weather_agent, calendar_agent, retriever_agent],
     model=llm,
+    agents=[weather_agent, calendar_agent, retriever_agent],
     prompt="""
-    You are a supervisor that managing `weather_agent`, `calendar_agent` and `retriever_agent`.
-    Combine the responses from all these agents into a clear and concise summary as final response.
+    You are a supervisor agent managing `weather_agent`, `calendar_agent`, and `retriever_agent`.
+
+    Your job is to:
+    1. Analyze the user's query and identify the individual sub-questions.
+    2. Route each sub-question to the appropriate agent by issuing only one `goto` command per sub-question.
+        - If the sub-question is about weather → route to `weather_agent`.
+        - If it's about calendar, meetings, or schedule → route to `calendar_agent`.
+        - If it's about blogs, documents, or technical topics → route to `retriever_agent`.
+    3. If there are multiple distinct sub-questions, split questions by '?' and issue a `goto` command for each, but ensure each sub-question is routed to only one agent.
+    4. Do not answer or summarize the question yourself. Only route sub-questions to the appropriate agents.
     """,
-    # output_mode="last_message",
-    output_mode="full_history",
+    output_mode="last_message",
 )
 
-# Initialize memory components
+# Memory components
 store = InMemoryStore()
 checkpointer = InMemorySaver()
 
-# Compile the graph
+# Compile the agent graph
 compiled_agent = supervisor.compile(
     checkpointer=checkpointer,
     store=store,
 )
 
-# Node Call (Synchronous)
+# Agent execution wrapper
 def llm_call(content: str) -> str:
+    """LLM decides whether to call a tool or not"""
     session_id = str(uuid.uuid4())
     logging.info(f"Session ID: {session_id}")
     try:
@@ -140,27 +145,13 @@ def llm_call(content: str) -> str:
             {"messages": [{"role": "user", "content": content}]},
             config={"configurable": {"thread_id": session_id}}
         )
-        logging.info(f"************************** Response: {response} **************************")
-
         if not response.get("messages"):
             raise ValueError("Empty response from agent")
 
-        combined_output = []
         for m in response["messages"]:
-            try:
-                if hasattr(m, "pretty_print"):
-                    logging.info(m.pretty_print())
-                else:
-                    logging.info(f"Message: {m}")
-                if hasattr(m, "content"):
-                    combined_output.append(m.content)
-                elif isinstance(m, dict) and "content" in m:
-                    combined_output.append(m["content"])
-            except Exception as log_err:
-                logging.warning(f"Error while logging message: {log_err}")
-                logging.info(f"Raw Message: {m}")
-
-        return "\n".join(combined_output)
+            logging.info(m.pretty_print())
+        final_output = response["messages"][-1].content if response.get("messages") else "No output"
+        return final_output
     except Exception as e:
         logging.error(f"Error in llm_call: {str(e)}")
         raise
