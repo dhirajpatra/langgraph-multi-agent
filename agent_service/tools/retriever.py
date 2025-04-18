@@ -1,70 +1,105 @@
-# File: agent_service/tools/retriever.py
+# agent_service/tools/retriever.py
 import os
 import logging
+from pathlib import Path
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.tools.retriever import create_retriever_tool
+from langchain.storage import LocalFileStore
+from langchain.embeddings import CacheBackedEmbeddings
 
 logging.basicConfig(level=logging.INFO)
 
-persist_dir = "./chroma_db"
-collection_name = "rag-chroma"
-model = "llama3.1:8b"
+# Configuration
+PERSIST_DIR = "./chroma_db"
+EMBEDDING_CACHE_DIR = "./embedding_cache"
+COLLECTION_NAME = "lilian-blog"
+EMBEDDING_MODEL = "llama3.1:8b"
+OLLAMA_SERVER_URL = "http://ollama_server:11434"
+BLOG_URLS = [
+    "https://developers.google.com/machine-learning/resources/prompt-eng",
+]
+CHUNK_SIZE = 500
+CHUNK_OVERLAP = 100
 
-embeddings = OllamaEmbeddings(model=model)
-vectorstore = None
+def is_chroma_db_initialized(persist_dir: str) -> bool:
+    """Check if ChromaDB is properly initialized after saving."""
+    db_file = os.path.join(persist_dir, 'chroma.sqlite3')
+    if not os.path.exists(db_file):
+        logging.info(f"ChromaDB file not found at {db_file}.")
+        return False
 
-# Ensure the directory exists
-if not os.path.exists(persist_dir):
-    os.makedirs(persist_dir)
-    logging.info(f"Created directory {persist_dir}.")
-else:
-    logging.info(f"Directory {persist_dir} found.")
-
-# Try to load existing vectorstore
-if os.listdir(persist_dir):
-    try:
-        vectorstore = Chroma(
-            collection_name=collection_name,
-            persist_directory=persist_dir,
-            embedding_function=embeddings,
-        )
-        logging.info("Loaded existing vectorstore.")
-    except Exception as e:
-        logging.error(f"Error loading vectorstore: {e}")
-else:
-    urls = [
-        "https://lilianweng.github.io/posts/2023-06-23-agent/",
+    # Try to find a subdirectory that looks like a Chroma collection directory
+    collection_dirs = [
+        d for d in os.listdir(persist_dir) if os.path.isdir(os.path.join(persist_dir, d)) and
+        len(d) == 36 and all(c in '0123456789abcdef-' for c in d)
     ]
 
-    docs = [WebBaseLoader(url).load() for url in urls]
-    docs_list = [item for sublist in docs for item in sublist]
+    if not collection_dirs:
+        logging.info("No Chroma collection directories found.")
+        return False
 
-    text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-        chunk_size=100, chunk_overlap=50
+    # Check for the existence of essential files within the first collection directory found
+    collection_path = os.path.join(persist_dir, collection_dirs[0])
+    required_collection_files = ['header.bin', 'length.bin', 'link_lists.bin']
+    return all(os.path.exists(os.path.join(collection_path, f)) for f in required_collection_files)
+
+def initialize_retriever():
+    # Configure Ollama embeddings with correct server URL
+    embeddings = OllamaEmbeddings(
+        model=EMBEDDING_MODEL,
+        base_url=OLLAMA_SERVER_URL
     )
-    doc_splits = text_splitter.split_documents(docs_list)
+    
+    # Create directory if it doesn't exist
+    Path(PERSIST_DIR).mkdir(parents=True, exist_ok=True)
 
-    # Create without embedding_function to avoid duplicate argument error
-    vectorstore = Chroma.from_documents(
-        documents=doc_splits,
-        collection_name=collection_name,
-        persist_directory=persist_dir,
-    )
-    vectorstore.persist()
-    logging.info("Created and persisted new vectorstore.")
-
-    # Reload with embedding function
-    vectorstore = Chroma(
-        collection_name=collection_name,
-        persist_directory=persist_dir,
-        embedding_function=embeddings,
+    # Create cached embeddings
+    fs = LocalFileStore(EMBEDDING_CACHE_DIR)
+    cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
+        embeddings,
+        fs,
+        namespace=EMBEDDING_MODEL
     )
 
-retriever = vectorstore.as_retriever()
-retriever.search_kwargs = {
-    "k": 3,
-    "search_type": "similarity"
-}
+    # Create directory if it doesn't exist
+    Path(PERSIST_DIR).mkdir(parents=True, exist_ok=True)
+    
+    if is_chroma_db_initialized(PERSIST_DIR):
+        try:
+            logging.info("Loading existing ChromaDB from persistence directory")
+            return Chroma(
+                collection_name=COLLECTION_NAME,
+                persist_directory=PERSIST_DIR,
+                embedding_function=cached_embeddings,  # Use cached embeddings
+            ).as_retriever(search_kwargs={"k": 3})
+        except Exception as e:
+            logging.error(f"Failed to load existing ChromaDB: {e}")
+    
+    # Create new vectorstore if needed
+    logging.info("Creating new ChromaDB vectorstore")
+    try:
+        loader = WebBaseLoader(BLOG_URLS)
+        docs = loader.load()
+        
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=CHUNK_SIZE,
+            chunk_overlap=CHUNK_OVERLAP
+        )
+        splits = splitter.split_documents(docs)
+        
+        # Create and return the vectorstore - persistence is automatic
+        vectorstore = Chroma.from_documents(
+            documents=splits,
+            embedding=cached_embeddings,
+            collection_name=COLLECTION_NAME,
+            persist_directory=PERSIST_DIR
+        )
+        
+        return vectorstore.as_retriever(search_kwargs={"k": 3})
+    except Exception as e:
+        logging.error(f"Failed to create new ChromaDB: {e}")
+        raise
+
+retriever = initialize_retriever()

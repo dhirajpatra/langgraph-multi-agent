@@ -1,21 +1,16 @@
 # tools/weather_tool.py
-
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 import logging
 from dotenv import load_dotenv
 import os
-# import requests
-# from urllib.parse import quote
 
 logging.basicConfig(level=logging.INFO)
 load_dotenv()
 
-
 class WeatherToolArgs(BaseModel):
     location: str = Field(description="The city and country to get the weather for.")
     unit: str = Field(default="celsius", description="The unit of temperature (default is Celsius).")
-
 
 @tool(args_schema=WeatherToolArgs, description="Get the current weather for a given location.")
 def weather_tool(location: str, unit: str = "celsius", tool_call_id: str | None = None) -> dict:
@@ -29,7 +24,6 @@ def weather_tool(location: str, unit: str = "celsius", tool_call_id: str | None 
         logging.error(f"[weather_tool] Error: {e}")
         return {"status": "error", "error_message": f"Error fetching weather: {str(e)}"}
 
-
 def get_weather(city: str, unit: str) -> str:
     """
     Fetch the weather information for the specified city.
@@ -38,23 +32,33 @@ def get_weather(city: str, unit: str) -> str:
     logging.info(f"[get_weather] Called for city: {city} (unit: {unit})")
     city_normalized = city.lower().replace(" ", "")
 
-    # Mock data for development/testing
-    mock_weather_db = {
-        "newyork": "The weather in New York is sunny with a temperature of 25°C.",
-        "london": "It's cloudy in London with a temperature of 15°C.",
-        "tokyo": "Tokyo is experiencing light rain and a temperature of 18°C.",
-        "chicago": "The weather in Chicago is sunny with a temperature of 25°C.",
-        "toronto": "It's partly cloudy in Toronto with a temperature of 30°C.",
-        "chennai": "It's rainy in Chennai with a temperature of 35°C.",
-        "bengaluru": "It's sunny in Bengaluru with a temperature of 15°C.",
-        "newdelhi": "It's cloudy in New Delhi with a temperature of 45°C.",
-        "kolkata": "It's sunny in Kolkata with a temperature of 35°C.",
-        "mumbai": "It's cloudy in Mumbai with a temperature of 30°C.",
+    # Base mock data in Celsius
+    mock_weather_db_celsius = {
+        "newyork": {"condition": "sunny", "temp": 25},
+        "london": {"condition": "cloudy", "temp": 15},
+        "tokyo": {"condition": "light rain", "temp": 18},
+        "chicago": {"condition": "sunny", "temp": 25},
+        "toronto": {"condition": "partly cloudy", "temp": 30},
+        "chennai": {"condition": "rainy", "temp": 35},
+        "bengaluru": {"condition": "sunny", "temp": 15},
+        "newdelhi": {"condition": "cloudy", "temp": 45},
+        "kolkata": {"condition": "sunny", "temp": 35},
+        "mumbai": {"condition": "cloudy", "temp": 30},
     }
 
-    if city_normalized in mock_weather_db:
+    if city_normalized in mock_weather_db_celsius:
+        data = mock_weather_db_celsius[city_normalized]
+        temp = data["temp"]
+        
+        # Convert temperature if needed
+        if unit.lower() in ["fahrenheit", "f"]:
+            temp = (temp * 9/5) + 32
+            temp_unit = "°F"
+        else:
+            temp_unit = "°C"
+        
         logging.info(f"[get_weather] Found mock weather data for: {city}")
-        return mock_weather_db[city_normalized]
+        return f"The weather in {city.title()} is {data['condition']} with a temperature of {int(temp)}{temp_unit}."
     else:
         logging.warning(f"[get_weather] No mock weather data for: {city}")
         return f"Sorry, I don't have weather information for '{city}'."
