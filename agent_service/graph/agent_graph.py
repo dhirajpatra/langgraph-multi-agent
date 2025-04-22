@@ -125,14 +125,15 @@ supervisor = create_supervisor(
     3. Agent routing rules:
         - Weather-related → `weather_agent`
         - Calendar/meetings/schedule → `calendar_agent`
-        - Blogs/documents/technical topics → `retriever_agent`
+        - Blogs/documents/LLM topics → `retriever_agent`
     4. Important rules:
         - Never route the same sub-question to multiple agents
         - Never issue multiple `goto` commands for the same sub-question
-        - DO NOT answer questions yourself - only route to agents
+        - DO NOT answer any sub-questions yourself - only route to agents
     5. For multiple sub-questions:
         - Process each one independently
         - Ensure each gets exactly one `goto` command to one agent
+        - Put together the final output from all agents and return it
     """,
     output_mode="last_message",
 )

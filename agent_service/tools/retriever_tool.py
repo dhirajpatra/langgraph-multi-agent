@@ -7,11 +7,11 @@ from tools.retriever import retriever  # This imports the pre-initialized retrie
 logging.basicConfig(level=logging.INFO)
 
 class RetrieverToolArgs(BaseModel):
-    query: str = Field(description="The search query to look for in the blog posts.")
+    query: str = Field(description="The search query to retrive information in the blog posts.")
     k: int = Field(default=3, description="Number of documents to return")
 
 @tool(args_schema=RetrieverToolArgs)
-def retriever_tool(query: str, k: int = 3) -> dict:
+def retriever_tool(query: str, k: int = 1) -> dict:
     """
     Search blog posts about LLM agents, prompt engineering, and adversarial attacks.
     Returns relevant passages based on semantic similarity.

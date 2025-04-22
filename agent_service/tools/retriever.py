@@ -75,7 +75,7 @@ def initialize_retriever():
                 collection_name=COLLECTION_NAME,
                 persist_directory=PERSIST_DIR,
                 embedding_function=cached_embeddings,  # Use cached embeddings
-            ).as_retriever(search_kwargs={"k": 3})
+            ).as_retriever(search_kwargs={"k": 1})
         except Exception as e:
             logging.error(f"Failed to load existing ChromaDB: {e}")
     
@@ -99,7 +99,7 @@ def initialize_retriever():
             persist_directory=PERSIST_DIR
         )
         
-        return vectorstore.as_retriever(search_kwargs={"k": 3})
+        return vectorstore.as_retriever(search_kwargs={"k": 1})
     except Exception as e:
         logging.error(f"Failed to create new ChromaDB: {e}")
         raise
