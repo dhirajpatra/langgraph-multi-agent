@@ -2,7 +2,9 @@
 
 import logging
 import uuid
+import os
 from typing import List, Literal, Annotated
+from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -19,8 +21,10 @@ from tools.calendar_tool import calendar_tool
 from tools.retriever_tool import retriever_tool
 
 logging.basicConfig(level=logging.INFO)
+load_dotenv()
 
-model = "llama3.1:8b"
+# model = "llama3.1:8b"
+model = os.getenv("MODEL")
 
 llm = ChatOllama(
     model=model,
@@ -125,7 +129,7 @@ supervisor = create_supervisor(
     4. Important rules:
         - Never route the same sub-question to multiple agents
         - Never issue multiple `goto` commands for the same sub-question
-        - Do not answer questions yourself - only route to agents
+        - DO NOT answer questions yourself - only route to agents
     5. For multiple sub-questions:
         - Process each one independently
         - Ensure each gets exactly one `goto` command to one agent

@@ -15,7 +15,7 @@ if ! ollama list | grep -q "$MODEL_NAME"; then
   echo "Model not found. Pulling $MODEL_NAME..."
   until ollama pull "$MODEL_NAME"; do
     echo "Retrying model download..."
-    sleep 5
+    # sleep 5
   done
 else
   echo "Model already exists. Skipping pull."

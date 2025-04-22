@@ -1,5 +1,6 @@
 # agent_service/tools/retriever.py
 import os
+from dotenv import load_dotenv
 import logging
 from pathlib import Path
 from langchain_community.document_loaders import WebBaseLoader
@@ -10,12 +11,13 @@ from langchain.storage import LocalFileStore
 from langchain.embeddings import CacheBackedEmbeddings
 
 logging.basicConfig(level=logging.INFO)
+load_dotenv()
 
 # Configuration
 PERSIST_DIR = "./chroma_db"
 EMBEDDING_CACHE_DIR = "./embedding_cache"
 COLLECTION_NAME = "lilian-blog"
-EMBEDDING_MODEL = "llama3.1:8b"
+EMBEDDING_MODEL = os.getenv("MODEL")
 OLLAMA_SERVER_URL = "http://ollama_server:11434"
 BLOG_URLS = [
     "https://developers.google.com/machine-learning/resources/prompt-eng",
