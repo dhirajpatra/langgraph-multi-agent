@@ -2,6 +2,9 @@
 
 LangGraph Ollama multi Agent application locally, and how to obtain an API key for LangSmith.
 
+# image of krishigpt chatbot
+![KrishiGPT Chatbot](./images/multiagentworking.png "KrishiGPT Chatbot")
+
 ## Prerequisites
 
 * Python 3.11 or higher

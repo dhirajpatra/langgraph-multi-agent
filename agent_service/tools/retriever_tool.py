@@ -1,37 +1,31 @@
-# File: agent_service/tools/retriever_tool.py
+# tools/retriever_tool.py
 import logging
 from langchain_core.tools import tool
-from langchain.tools.retriever import create_retriever_tool
-from tools.retriever import retriever
+from pydantic import BaseModel, Field
+from tools.retriever import retriever  # This imports the pre-initialized retriever
 
 logging.basicConfig(level=logging.INFO)
 
-# Create retriever tool instance globally
-retriever_tool_instance = create_retriever_tool(
-    retriever,
-    name="retriever_tool",
-    description=(
-        "Search and return information about Lilian Weng blog posts "
-        "on LLM agents, prompt engineering, and adversarial attacks on LLMs."
-    ),
-)
+class RetrieverToolArgs(BaseModel):
+    query: str = Field(description="The search query to look for in the blog posts.")
+    k: int = Field(default=3, description="Number of documents to return")
 
-@tool("retriever_tool", description="Search blog posts based on user query.")
-def retriever_tool(query: str) -> dict:
+@tool(args_schema=RetrieverToolArgs)
+def retriever_tool(query: str, k: int = 3) -> dict:
     """
-    Tool to search blog posts based on user query.
+    Search blog posts about LLM agents, prompt engineering, and adversarial attacks.
+    Returns relevant passages based on semantic similarity.
     """
-    logging.info(f"[RetrieverTool] Query received: {query}")
+    logging.info(f"[blog_retriever] Searching for: {query}")
     try:
-        result = retriever_tool_instance.invoke(query)
-        logging.info(f"[RetrieverTool] Retrieved result: {result}")
+        # Update search parameters
+        retriever.search_kwargs["k"] = k
+        results = retriever.invoke(query)
+        logging.info(f"[blog_retriever] Retrieved {len(results)} documents")
         return {
             "status": "success",
-            "report": f"Retrieved from Lilian Blog: {result}"
+            "results": [{"content": doc.page_content, "metadata": doc.metadata} for doc in results]
         }
     except Exception as e:
-        logging.error(f"[RetrieverTool] Error occurred: {e}")
-        return {
-            "status": "error",
-            "report": f"Error occurred while retrieving blog posts: {str(e)}"
-        }
+        logging.error(f"[blog_retriever] Error: {e}")
+        return {"status": "error", "message": f"Retrieval failed: {str(e)}"}
