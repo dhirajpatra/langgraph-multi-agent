@@ -2,6 +2,7 @@
 from langchain_core.tools import tool
 import logging
 from dotenv import load_dotenv
+from tools.ipinfo import get_current_location
 
 logging.basicConfig(level=logging.INFO)
 load_dotenv()
@@ -18,7 +19,9 @@ def weather_tool(location: str, unit: str = "celsius") -> dict:
     Returns:
         A dictionary containing the current weather information.
     """
-    try:
+    try:    
+        ip_info = get_current_location()
+        location = location or ip_info.get("city")
         weather_data = get_weather(location, unit)
         return {"status": "success", "report": weather_data}
     except Exception as e:
