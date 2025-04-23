@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.outputs import ChatResult, ChatGeneration
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.store.memory import InMemoryStore
@@ -80,47 +79,6 @@ retriever_agent = Agent(
     output_type=FinalResult,
 )
 
-def create_custom_handoff_tool(*, agent_name: str, name: str | None, description: str | None) -> BaseTool:
-    @tool(name, description=description)
-    def handoff_to_agent(
-        state: Annotated[dict, InjectedState],
-        tool_call_id: Annotated[str, InjectedToolCallId],
-    ):
-        task_description = state.get("task_description", "")
-        tool_message = ToolMessage(
-            content=f"Successfully transferred to {agent_name}",
-            name=name,
-            tool_call_id=tool_call_id,
-        )
-        messages = state.get("messages", [])
-        return Command(
-            goto=agent_name,
-            graph=Command.PARENT,
-            update={
-                "messages": messages + [tool_message],
-                "active_agent": agent_name,
-                "task_description": task_description,
-            },
-        )
-
-    return handoff_to_agent
-
-handoff_to_weather = create_custom_handoff_tool(
-    agent_name="weather_agent",
-    name="handoff_to_weather",
-    description="Handoff control to the weather agent.",
-)
-handoff_to_calendar = create_custom_handoff_tool(
-    agent_name="calendar_agent",
-    name="handoff_to_calendar",
-    description="Handoff control to the calendar agent.",
-)
-handoff_to_retriever = create_custom_handoff_tool(
-    agent_name="retriever_agent",
-    name="handoff_to_retriever",
-    description="Handoff control to the retriever agent.",
-)
-
 supervisor = Agent(
     model=llm,
     handoffs=[weather_agent, calendar_agent, retriever_agent],
@@ -153,28 +111,31 @@ supervisor = Agent(
 store = InMemoryStore()
 checkpointer = InMemorySaver()
 
-def llm_call(content: str) -> str:
+async def llm_call(content: str) -> str:
     session_id = str(uuid.uuid4())
     logging.info(f"Session ID: {session_id}")
     try:
-        response = Runner.run_sync(
+        # Wrap the input as a list of dicts (as required by LangGraph input format)
+        input_data = [{"name": "input", "content": content}]
+
+        # Call the agent
+        response = await Runner.run(
             starting_agent=supervisor,
-            handoff_filters=[
-                handoff_filters.handoff_to_weather,
-                handoff_filters.handoff_to_calendar,
-                handoff_filters.handoff_to_retriever,
-            ],
-            input={"messages": [{"role": "user", "content": content}]},
-            config={"configurable": {"thread_id": session_id}}
+            input=input_data,
         )
-        
+
+        logging.info(f"********************** Response: {response}")
+
+        # Validate and extract message content
         if not response.get("messages"):
             raise ValueError("Empty response from agent")
 
         for m in response["messages"]:
-            logging.info(m.pretty_print())
-        final_output = response["messages"][-1].content if response.get("messages") else "No output"
+            logging.info(f"Message: {m.pretty_print()}")
+
+        final_output = response["messages"][-1].content
         return final_output
+
     except Exception as e:
         logging.error(f"Error in llm_call: {str(e)}")
         raise

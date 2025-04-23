@@ -34,10 +34,10 @@ class OutputMessage(BaseModel):
 # Chat endpoint
 @app.post("/chat", response_model=OutputMessage)
 # @limiter.limit("1/minute")
-def chat(input_msg: InputMessage):
+async def chat(input_msg: InputMessage):
     try:
         logging.info(f"Received message: {input_msg.text}")
-        reply = llm_call(content=input_msg.text)  # Ensure this is a valid string or dict
+        reply = await llm_call(content=input_msg.text)  # Ensure this is a valid string or dict
         return {"reply": reply}
     except Exception as e:
         logging.exception("Chat processing failed.")
