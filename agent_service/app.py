@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from graph.agent_graph import compiled_agent, llm_call
+from graph.agent_graph import llm_call
 # from slowapi import Limiter
 # from slowapi.util import get_remote_address
 

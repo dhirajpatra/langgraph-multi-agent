@@ -1,6 +1,5 @@
 # tools/calendar_tool.py
-
-from langchain_core.tools import tool
+from agents import Agent, HandoffInputData, Runner, function_tool, handoff, trace
 from pydantic import BaseModel
 import csv
 import os
@@ -14,7 +13,7 @@ class CalendarToolArgs(BaseModel):
     pass  # No arguments needed
 
 
-@tool(args_schema=CalendarToolArgs, description="Check calendar for meetings on today's date.")
+@function_tool
 def calendar_tool(tool_call_id: str | None = None) -> dict:
     """
     Check calendar for meetings on today's date.

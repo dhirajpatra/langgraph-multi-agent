@@ -1,5 +1,5 @@
 # tools/weather_tool.py
-from langchain_core.tools import tool
+from agents import Agent, HandoffInputData, Runner, function_tool, handoff, trace
 from pydantic import BaseModel, Field
 import logging
 from dotenv import load_dotenv
@@ -13,7 +13,7 @@ class WeatherToolArgs(BaseModel):
     location: str = Field(description="The city or country to get the weather for.")
     unit: str = Field(default="celsius", description="The unit of temperature (default is Celsius).")
 
-@tool(args_schema=WeatherToolArgs, description="Get the current weather for a given location.")
+@function_tool
 def weather_tool(location: str, unit: str = "celsius", tool_call_id: str | None = None) -> dict:
     """
     Get the current weather for a given location.

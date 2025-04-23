@@ -11,9 +11,9 @@ services:
     working_dir: /app
     ports:
       - "5000:5000"
-    depends_on:
+    # depends_on:
       # - ollama_server_lite
-      - ollama_server
+      # - ollama_server
     deploy:
       resources:
         limits:
@@ -68,24 +68,24 @@ services:
     networks:
       - agent-network
 
-  streamlit_app:
-    build: ./chat
-    container_name: streamlit_app
-    volumes:
-      - .:/app
-    ports:
-      - "8501:8501"
-    depends_on:
-      # - ollama_server_lite
-      - ollama_server
-      - agent_service
-    deploy:
-      resources:
-        limits:
-          cpus: '1.00'
-          memory: 2G
-    networks:
-      - agent-network
+  # streamlit_app:
+  #   build: ./chat
+  #   container_name: streamlit_app
+  #   volumes:
+  #     - .:/app
+  #   ports:
+  #     - "8501:8501"
+  #   depends_on:
+  #     # - ollama_server_lite
+  #     - ollama_server
+  #     - agent_service
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1.00'
+  #         memory: 2G
+  #   networks:
+  #     - agent-network
 
 volumes:
   ollama_data:

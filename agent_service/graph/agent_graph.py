@@ -1,13 +1,16 @@
 # agent_service/graph/agent_graph.py
-
+from __future__ import annotations
 import logging
 import uuid
 import os
-from typing import List, Literal, Annotated
+from typing import List, Literal, Annotated, Any
+from pydantic import BaseModel
 from dotenv import load_dotenv
-from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.outputs import ChatResult, ChatGeneration
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.store.memory import InMemoryStore
 from langgraph.prebuilt import create_react_agent
@@ -20,82 +23,88 @@ from tools.weather_tool import weather_tool
 from tools.calendar_tool import calendar_tool
 from tools.retriever_tool import retriever_tool
 
+from openai import OpenAI
+from agents import Agent, HandoffInputData, Runner, function_tool, handoff, trace
+from agents.extensions import handoff_filters
+
 logging.basicConfig(level=logging.INFO)
 load_dotenv()
 
-# model = "llama3.1:8b"
-model = os.getenv("MODEL")
+model = os.getenv("REMOTE_MODEL")
+base_url = os.getenv("REMOTE_BASE_URL")
+token = os.getenv("GITHUB_TOKEN")
 
-llm = ChatOllama(
-    model=model,
-    base_url="http://ollama_server:11434",
-    temperature=0.0,
-    max_tokens=500,
-    top_p=0.1,
+temperature = 0.9
+top_p = 0.1
+max_tokens = 500
+
+llm = OpenAI(
+    base_url=base_url,
+    api_key=token,
 )
 
-# Create specialized agents
-weather_agent = create_react_agent(
+class FinalResult(BaseModel):
+    result: dict[str, Any]
+
+# Specialized agents
+weather_agent = Agent(
     model=llm,
     tools=[weather_tool],
     name="weather_agent",
-    prompt="""
+    instructions="""
     You are a specialized weather assistant. Always respond using the `weather_tool` only. 
     Do not generate any additional explanation or response. Return only the tool output.
-    """
+    """,
+    output_type=FinalResult,
 )
 
-calendar_agent = create_react_agent(
+calendar_agent = Agent(
     model=llm,
     tools=[calendar_tool],
     name="calendar_agent",
-    prompt="""
+    instructions="""
     You are a calendar assistant. Always respond using the `calendar_tool` only. 
     Do not generate any additional response. Return only the tool output.
-    """
+    """,
+    output_type=FinalResult,
 )
 
-retriever_agent = create_react_agent(
+retriever_agent = Agent(
     model=llm,
     tools=[retriever_tool],
     name="retriever_agent",
-    prompt="""
+    instructions="""
     You are a retriever assistant. Always respond using the `retriever_tool` only.
     Do not generate any additional response. Return only the tool output.    
-    """
+    """,
+    output_type=FinalResult,
 )
 
-# Custom Handoff Tool
 def create_custom_handoff_tool(*, agent_name: str, name: str | None, description: str | None) -> BaseTool:
     @tool(name, description=description)
     def handoff_to_agent(
         state: Annotated[dict, InjectedState],
         tool_call_id: Annotated[str, InjectedToolCallId],
     ):
-        # Get task description from the state (you should store it somewhere earlier in the flow)
         task_description = state.get("task_description", "")
-
-        # Ensure the key exists in state
         tool_message = ToolMessage(
             content=f"Successfully transferred to {agent_name}",
             name=name,
             tool_call_id=tool_call_id,
         )
         messages = state.get("messages", [])
-        
         return Command(
             goto=agent_name,
             graph=Command.PARENT,
             update={
                 "messages": messages + [tool_message],
                 "active_agent": agent_name,
-                "task_description": task_description,  # Store task_description in the state
+                "task_description": task_description,
             },
         )
 
     return handoff_to_agent
 
-# Create handoff tools
 handoff_to_weather = create_custom_handoff_tool(
     agent_name="weather_agent",
     name="handoff_to_weather",
@@ -112,11 +121,11 @@ handoff_to_retriever = create_custom_handoff_tool(
     description="Handoff control to the retriever agent.",
 )
 
-# Supervisor agent using standard LangGraph supervisor
-supervisor = create_supervisor(
+supervisor = Agent(
     model=llm,
-    agents=[weather_agent, calendar_agent, retriever_agent],
-    prompt="""
+    handoffs=[weather_agent, calendar_agent, retriever_agent],
+    name="supervisor",
+    instructions="""
     You are a supervisor agent managing `weather_agent`, `calendar_agent`, and `retriever_agent`.
 
     Your job is to:
@@ -139,29 +148,26 @@ supervisor = create_supervisor(
         - After all agents have responded with their results 
         - put together the final output from all agents and respond with FINISH.
     """,
-    output_mode="last_message",
 )
 
-# Memory components
 store = InMemoryStore()
 checkpointer = InMemorySaver()
 
-# Compile the agent graph
-compiled_agent = supervisor.compile(
-    checkpointer=checkpointer,
-    store=store,
-)
-
-# Agent execution wrapper
 def llm_call(content: str) -> str:
-    """LLM decides whether to call a tool or not"""
     session_id = str(uuid.uuid4())
     logging.info(f"Session ID: {session_id}")
     try:
-        response = compiled_agent.invoke(
-            {"messages": [{"role": "user", "content": content}]},
+        response = Runner.run_sync(
+            starting_agent=supervisor,
+            handoff_filters=[
+                handoff_filters.handoff_to_weather,
+                handoff_filters.handoff_to_calendar,
+                handoff_filters.handoff_to_retriever,
+            ],
+            input={"messages": [{"role": "user", "content": content}]},
             config={"configurable": {"thread_id": session_id}}
         )
+        
         if not response.get("messages"):
             raise ValueError("Empty response from agent")
 

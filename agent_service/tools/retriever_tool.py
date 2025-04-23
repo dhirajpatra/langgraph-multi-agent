@@ -1,6 +1,6 @@
 # tools/retriever_tool.py
 import logging
-from langchain_core.tools import tool
+from agents import Agent, HandoffInputData, Runner, function_tool, handoff, trace
 from pydantic import BaseModel, Field
 from tools.retriever import retriever  # This imports the pre-initialized retriever
 
@@ -11,7 +11,7 @@ class RetrieverToolArgs(BaseModel):
     query: str = Field(description="The search query to retrive information in the blog posts.")
     k: int = Field(default=k, description="Number of documents to return")
 
-@tool(args_schema=RetrieverToolArgs)
+@function_tool
 def retriever_tool(query: str, k: int = 1) -> dict:
     """
     Search blog posts about LLM agents, prompt engineering, and adversarial attacks.
