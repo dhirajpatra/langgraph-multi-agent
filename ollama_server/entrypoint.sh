@@ -10,7 +10,7 @@ mkdir -p /root/.ollama/models
 # Pull model if not already present
 # MODEL_NAME="deepseek-r1:1.5b"
 MODEL_NAME="llama3.1:8b"
-# MODEL_NAME="qwen2.5:7b-instruct"
+# MODEL_NAME="llama3.2:3b"
 if ! ollama list | grep -q "$MODEL_NAME"; then
   echo "Model not found. Pulling $MODEL_NAME..."
   until ollama pull "$MODEL_NAME"; do

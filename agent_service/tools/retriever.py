@@ -24,6 +24,7 @@ BLOG_URLS = [
 ]
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 100
+k = 3
 
 def is_chroma_db_initialized(persist_dir: str) -> bool:
     """Check if ChromaDB is properly initialized after saving."""
@@ -75,7 +76,7 @@ def initialize_retriever():
                 collection_name=COLLECTION_NAME,
                 persist_directory=PERSIST_DIR,
                 embedding_function=cached_embeddings,  # Use cached embeddings
-            ).as_retriever(search_kwargs={"k": 1})
+            ).as_retriever(search_kwargs={"k": k})
         except Exception as e:
             logging.error(f"Failed to load existing ChromaDB: {e}")
     
@@ -99,7 +100,7 @@ def initialize_retriever():
             persist_directory=PERSIST_DIR
         )
         
-        return vectorstore.as_retriever(search_kwargs={"k": 1})
+        return vectorstore.as_retriever(search_kwargs={"k": k})
     except Exception as e:
         logging.error(f"Failed to create new ChromaDB: {e}")
         raise

@@ -5,10 +5,11 @@ from pydantic import BaseModel, Field
 from tools.retriever import retriever  # This imports the pre-initialized retriever
 
 logging.basicConfig(level=logging.INFO)
+k = 3  # Default number of documents to return
 
 class RetrieverToolArgs(BaseModel):
     query: str = Field(description="The search query to retrive information in the blog posts.")
-    k: int = Field(default=3, description="Number of documents to return")
+    k: int = Field(default=k, description="Number of documents to return")
 
 @tool(args_schema=RetrieverToolArgs)
 def retriever_tool(query: str, k: int = 1) -> dict:
@@ -16,7 +17,7 @@ def retriever_tool(query: str, k: int = 1) -> dict:
     Search blog posts about LLM agents, prompt engineering, and adversarial attacks.
     Returns relevant passages based on semantic similarity.
     """
-    logging.info(f"[blog_retriever] Searching for: {query}")
+    logging.info(f"*********************** [blog_retriever] Searching for: {query}")
     try:
         # Update search parameters
         retriever.search_kwargs["k"] = k

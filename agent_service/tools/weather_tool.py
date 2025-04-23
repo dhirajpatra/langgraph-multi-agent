@@ -20,7 +20,9 @@ def weather_tool(location: str, unit: str = "celsius", tool_call_id: str | None 
     """
     try:    
         ip_info = get_current_location()
+        logging.info(f"******************** [weather_tool] IP Info: {ip_info}")
         location = ip_info.get("city")
+        logging.info(f"***************** [weather_tool] Location: {location}")
         weather_data = get_weather(location, unit)
         return {"status": "success", "report": weather_data}
     except Exception as e:
