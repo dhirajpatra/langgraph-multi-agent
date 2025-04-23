@@ -6,12 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from graph.agent_graph import compiled_agent, llm_call
+# from slowapi import Limiter
+# from slowapi.util import get_remote_address
 
 # Load env variables
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 # FastAPI app
+# limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -30,6 +33,7 @@ class OutputMessage(BaseModel):
 
 # Chat endpoint
 @app.post("/chat", response_model=OutputMessage)
+# @limiter.limit("1/minute")
 def chat(input_msg: InputMessage):
     try:
         logging.info(f"Received message: {input_msg.text}")

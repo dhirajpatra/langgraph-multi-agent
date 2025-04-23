@@ -16,3 +16,4 @@ chromadb
 langchain-chroma>=0.1.2
 langchain-text-splitters 
 beautifulsoup4
+slowapi

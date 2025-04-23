@@ -2,7 +2,9 @@
 
 import logging
 import uuid
+import os
 from typing import List, Literal, Annotated
+from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -19,13 +21,17 @@ from tools.calendar_tool import calendar_tool
 from tools.retriever_tool import retriever_tool
 
 logging.basicConfig(level=logging.INFO)
+load_dotenv()
 
-model = "llama3.1:8b"
+# model = "llama3.1:8b"
+model = os.getenv("MODEL")
 
 llm = ChatOllama(
     model=model,
     base_url="http://ollama_server:11434",
     temperature=0.0,
+    max_tokens=500,
+    top_p=0.1,
 )
 
 # Create specialized agents
@@ -119,16 +125,19 @@ supervisor = create_supervisor(
         a. Determine the most appropriate agent (only one per sub-question)
         b. Issue exactly one `goto` command for that sub-question
     3. Agent routing rules:
+        - route only one sub-question to one agent
         - Weather-related → `weather_agent`
         - Calendar/meetings/schedule → `calendar_agent`
-        - Blogs/documents/technical topics → `retriever_agent`
+        - Blogs/documents/prompt/LLM topics → `retriever_agent`
     4. Important rules:
         - Never route the same sub-question to multiple agents
         - Never issue multiple `goto` commands for the same sub-question
-        - Do not answer questions yourself - only route to agents
+        - DO NOT answer any sub-questions yourself - only route to agents
     5. For multiple sub-questions:
         - Process each one independently
         - Ensure each gets exactly one `goto` command to one agent
+        - After all agents have responded with their results 
+        - put together the final output from all agents and respond with FINISH.
     """,
     output_mode="last_message",
 )
@@ -163,4 +172,3 @@ def llm_call(content: str) -> str:
     except Exception as e:
         logging.error(f"Error in llm_call: {str(e)}")
         raise
-

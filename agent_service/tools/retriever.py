@@ -1,5 +1,6 @@
 # agent_service/tools/retriever.py
 import os
+from dotenv import load_dotenv
 import logging
 from pathlib import Path
 from langchain_community.document_loaders import WebBaseLoader
@@ -10,18 +11,20 @@ from langchain.storage import LocalFileStore
 from langchain.embeddings import CacheBackedEmbeddings
 
 logging.basicConfig(level=logging.INFO)
+load_dotenv()
 
 # Configuration
 PERSIST_DIR = "./chroma_db"
 EMBEDDING_CACHE_DIR = "./embedding_cache"
 COLLECTION_NAME = "lilian-blog"
-EMBEDDING_MODEL = "llama3.1:8b"
+EMBEDDING_MODEL = os.getenv("MODEL")
 OLLAMA_SERVER_URL = "http://ollama_server:11434"
 BLOG_URLS = [
     "https://developers.google.com/machine-learning/resources/prompt-eng",
 ]
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 100
+k = 3
 
 def is_chroma_db_initialized(persist_dir: str) -> bool:
     """Check if ChromaDB is properly initialized after saving."""
@@ -73,7 +76,7 @@ def initialize_retriever():
                 collection_name=COLLECTION_NAME,
                 persist_directory=PERSIST_DIR,
                 embedding_function=cached_embeddings,  # Use cached embeddings
-            ).as_retriever(search_kwargs={"k": 3})
+            ).as_retriever(search_kwargs={"k": k})
         except Exception as e:
             logging.error(f"Failed to load existing ChromaDB: {e}")
     
@@ -97,7 +100,7 @@ def initialize_retriever():
             persist_directory=PERSIST_DIR
         )
         
-        return vectorstore.as_retriever(search_kwargs={"k": 3})
+        return vectorstore.as_retriever(search_kwargs={"k": k})
     except Exception as e:
         logging.error(f"Failed to create new ChromaDB: {e}")
         raise
