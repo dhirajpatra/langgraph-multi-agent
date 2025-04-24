@@ -31,24 +31,33 @@ llm = ChatOllama(
     model=model,
     base_url=base_url,
     temperature=0.0,
-    max_tokens=500,
-    top_p=0.1,
+    max_tokens=1000,
+    top_p=0.9,  # Increased from 0.1 to allow more diversity
+    top_k=40,   # Added to help with tool selection
 )
 
-weather_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a weather assistant. Use only `weather_tool` to get the weather info. Return only the tool output."),
-    MessagesPlaceholder("messages"),
-])
-calendar_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a calendar assistant. Use only `calendar_tool` to get the meeting info. Return only the tool output."),
-    MessagesPlaceholder("messages"),
+weather_prompt = """You are a weather assistant. Follow these rules STRICTLY:
+1. ONLY answer weather-related questions
+2. Use ONLY the weather_tool
+3. Return ONLY factual weather data
+4. For non-weather questions, respond: "I only handle weather queries"
+5. After completing your task, ALWAYS transfer back to supervisor
+"""
 
-])
-retriever_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a retriever assistant. Use only `retriever_tool` to get the blog info. Return only the tool output."),
-    MessagesPlaceholder("messages"),
-
-])
+calendar_prompt = """You are a calendar assistant. Follow these rules STRICTLY:
+1. ONLY answer about meetings/events
+2. Use ONLY the calendar_tool
+3. Return ONLY calendar information
+4. For non-calendar questions, respond: "I only handle calendar queries"
+5. After completing your task, ALWAYS transfer back to supervisor
+"""
+retriever_prompt = """You are a document retrieval assistant. Follow these rules STRICTLY:
+1. ONLY answer about blogs/documents/llm/prompts
+2. Use ONLY the retriever_tool
+3. Return ONLY blog information
+4. For non-blog, non-documents, non-llm, non-prompt questions, respond: "I only handle blog queries"
+5. After completing your task, ALWAYS transfer back to supervisor
+"""
 
 # Create specialized agents
 weather_agent = create_react_agent(
@@ -79,16 +88,15 @@ def create_custom_handoff_tool(*, agent_name: str, name: str | None, description
         state: Annotated[dict, InjectedState],
         tool_call_id: Annotated[str, InjectedToolCallId],
     ):
-        # Get task description from the state (you should store it somewhere earlier in the flow)
-        task_description = state.get("task_description", "")
-
-        # Ensure the key exists in state
+        # Get the last human message
+        messages = state.get("messages", [])
+        last_human_msg = next((msg for msg in reversed(messages) if isinstance(msg, HumanMessage)), None)
+        
         tool_message = ToolMessage(
             content=f"Successfully transferred to {agent_name}",
             name=name,
             tool_call_id=tool_call_id,
         )
-        messages = state.get("messages", [])
         
         return Command(
             goto=agent_name,
@@ -96,10 +104,9 @@ def create_custom_handoff_tool(*, agent_name: str, name: str | None, description
             update={
                 "messages": messages + [tool_message],
                 "active_agent": agent_name,
-                "task_description": task_description,  # Store task_description in the state
+                "task_description": last_human_msg.content if last_human_msg else "",
             },
         )
-
     return handoff_to_agent
 
 # Create handoff tools
@@ -119,34 +126,35 @@ handoff_to_retriever = create_custom_handoff_tool(
     description="Handoff control to the retriever agent.",
 )
 
+agents = [weather_agent, calendar_agent, retriever_agent]
+
 # Supervisor agent using standard LangGraph supervisor
 supervisor = create_supervisor(
+    agents,
     model=llm,
-    agents=[weather_agent, calendar_agent, retriever_agent],
     prompt="""
     You are a supervisor agent managing `weather_agent`, `calendar_agent`, and `retriever_agent`.
-
-    Your job is to:
-    1. Analyze the user's query and identify the individual sub-questions by splitting on '?'.
-    2. For each distinct sub-question:
-        a. Determine the most appropriate agent (only one per sub-question)
-        b. Issue exactly one `goto` command for that sub-question
-    3. Agent routing rules:
-        - route only one sub-question to one agent
-        - Weather-related → `weather_agent`
-        - Calendar/meetings/schedule → `calendar_agent`
-        - Blogs/documents/prompt/LLM topics → `retriever_agent`
-    4. Important rules:
-        - Never route the same sub-question to multiple agents
-        - Never issue multiple `goto` commands for the same sub-question
-        - DO NOT answer any sub-questions yourself - only route to agents
-    5. For multiple sub-questions:
-        - Process each one independently
-        - Ensure each gets exactly one `goto` command to one agent
-        - After all agents have responded with their results 
-        - put together the final output from all agents and respond with FINISH.
+    
+    Responsibilities:
+    1. Analyze the user's query and split into distinct sub-questions by '?'
+    2. For each sub-question:
+        - Route to exactly one specialized agent
+        - Weather → weather_agent
+        - Calendar/meetings → calendar_agent
+        - Documents/knowledge → retriever_agent
+    3. After all agents respond:
+        - Use compile_responses to gather outputs
+        - Use finalize_response to format the answer
+        - Respond with FINISH
+    
+    Strict Rules:
+    - NEVER answer questions directly
+    - NEVER route same question to multiple agents
+    - ALWAYS wait for all agents to complete
+    - ALWAYS use the response formatting tools
     """,
     output_mode="last_message",
+    # output_mode="full_history",
 )
 
 # Memory components
@@ -161,21 +169,33 @@ compiled_agent = supervisor.compile(
 
 # Agent execution wrapper
 def llm_call(content: str) -> str:
-    """LLM decides whether to call a tool or not"""
+    """Enhanced LLM execution wrapper"""
     session_id = str(uuid.uuid4())
     logging.info(f"Session ID: {session_id}")
+    
     try:
         response = compiled_agent.invoke(
-            {"messages": [{"role": "user", "content": content}]},
-            config={"configurable": {"thread_id": session_id}}
+            {
+                "messages": [HumanMessage(content=content)],
+                "task_description": content  # Store the original query
+            },
+            config={
+                "configurable": {
+                    "thread_id": session_id,
+                    "recursion_limit": 10  # Prevent infinite loops
+                }
+            }
         )
-        if not response.get("messages"):
-            raise ValueError("Empty response from agent")
 
-        for m in response["messages"]:
-            logging.info(m.pretty_print())
-        final_output = response["messages"][-1].content if response.get("messages") else "No output"
-        return final_output
+        # Extract the final response
+        final_message = next(
+            (msg for msg in reversed(response["messages"]) 
+             if isinstance(msg, AIMessage) and msg.name == "supervisor"),
+            None
+        )
+        
+        return final_message.content if final_message else "No response generated"
+        
     except Exception as e:
         logging.error(f"Error in llm_call: {str(e)}")
-        raise
+        return f"Error processing your request: {str(e)}"
