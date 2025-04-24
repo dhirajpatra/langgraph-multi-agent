@@ -25,44 +25,51 @@ load_dotenv()
 
 # model = "llama3.1:8b"
 model = os.getenv("MODEL")
+base_url = os.getenv("BASE_URL")
 
 llm = ChatOllama(
     model=model,
-    base_url="http://ollama_server:11434",
+    base_url=base_url,
     temperature=0.0,
     max_tokens=500,
     top_p=0.1,
 )
+
+weather_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a weather assistant. Use only `weather_tool` to get the weather info. Return only the tool output."),
+    MessagesPlaceholder("messages"),
+])
+calendar_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a calendar assistant. Use only `calendar_tool` to get the meeting info. Return only the tool output."),
+    MessagesPlaceholder("messages"),
+
+])
+retriever_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a retriever assistant. Use only `retriever_tool` to get the blog info. Return only the tool output."),
+    MessagesPlaceholder("messages"),
+
+])
 
 # Create specialized agents
 weather_agent = create_react_agent(
     model=llm,
     tools=[weather_tool],
     name="weather_agent",
-    prompt="""
-    You are a specialized weather assistant. Always respond using the `weather_tool` only. 
-    Do not generate any additional explanation or response. Return only the tool output.
-    """
+    prompt=weather_prompt
 )
 
 calendar_agent = create_react_agent(
     model=llm,
     tools=[calendar_tool],
     name="calendar_agent",
-    prompt="""
-    You are a calendar assistant. Always respond using the `calendar_tool` only. 
-    Do not generate any additional response. Return only the tool output.
-    """
+    prompt=calendar_prompt
 )
 
 retriever_agent = create_react_agent(
     model=llm,
     tools=[retriever_tool],
     name="retriever_agent",
-    prompt="""
-    You are a retriever assistant. Always respond using the `retriever_tool` only.
-    Do not generate any additional response. Return only the tool output.    
-    """
+    prompt=retriever_prompt
 )
 
 # Custom Handoff Tool

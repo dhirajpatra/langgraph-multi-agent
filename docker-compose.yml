@@ -12,8 +12,8 @@ services:
     ports:
       - "5000:5000"
     depends_on:
-      # - ollama_server_lite
-      - ollama_server
+      - ollama_server_lite
+      # - ollama_server
     deploy:
       resources:
         limits:
@@ -22,44 +22,18 @@ services:
     networks:
       - agent-network
 
-  # ollama_server_lite:
-  #   image: langgraph_example-ollama_server_lite:latest  # or build with llama3.2:1b
-  #   build: 
-  #     context: ./ollama_server
-  #   container_name: ollama_server_lite
-  #   ports:
-  #     - "11435:11434"
-  #   volumes:
-  #     - .:/app
-  #     - ./ollama_data:/root/.ollama
-  #     - ./ollama_models:/root/.ollama/models
-  #   entrypoint: ["/bin/bash", "/app/ollama_server/entrypoint.sh"]
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: '2.00'
-  #         memory: 8G
-  #   networks:
-  #     - agent-network
-
-  ollama_server:
-    # image: ai_agent_project/ollama_server:latest # deepseek-r1:1.5b
-    image: langgraph_example-ollama_server:latest # llama3.1:8b or qwen2.5:7b-instruct
-    # build:
-    #   context: ./ollama_server
-    container_name: ollama_server
+  ollama_server_lite:
+    image: langgraph_example-ollama_server_lite:latest  # or build with llama3.2:1b
+    build: 
+      context: ./ollama_server
+    container_name: ollama_server_lite
     ports:
-      - "11434:11434"
+      - "11435:11434"
     volumes:
       - .:/app
-      - ./ollama_data:/root/.ollama  # ✅ Changed from direct /root path to local folder
+      - ./ollama_data:/root/.ollama
       - ./ollama_models:/root/.ollama/models
     entrypoint: ["/bin/bash", "/app/ollama_server/entrypoint.sh"]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
     deploy:
       resources:
         limits:
@@ -67,6 +41,32 @@ services:
           memory: 8G
     networks:
       - agent-network
+
+  # ollama_server:
+  #   # image: ai_agent_project/ollama_server:latest # deepseek-r1:1.5b
+  #   image: langgraph_example-ollama_server:latest # llama3.1:8b or qwen2.5:7b-instruct
+  #   # build:
+  #   #   context: ./ollama_server
+  #   container_name: ollama_server
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - .:/app
+  #     - ./ollama_data:/root/.ollama  # ✅ Changed from direct /root path to local folder
+  #     - ./ollama_models:/root/.ollama/models
+  #   entrypoint: ["/bin/bash", "/app/ollama_server/entrypoint.sh"]
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:11434/"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '2.00'
+  #         memory: 8G
+  #   networks:
+  #     - agent-network
 
   streamlit_app:
     build: ./chat
@@ -76,8 +76,8 @@ services:
     ports:
       - "8501:8501"
     depends_on:
-      # - ollama_server_lite
-      - ollama_server
+      - ollama_server_lite
+      # - ollama_server
       - agent_service
     deploy:
       resources:

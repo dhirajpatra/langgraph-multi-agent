@@ -18,7 +18,7 @@ PERSIST_DIR = "./chroma_db"
 EMBEDDING_CACHE_DIR = "./embedding_cache"
 COLLECTION_NAME = "lilian-blog"
 EMBEDDING_MODEL = os.getenv("MODEL")
-OLLAMA_SERVER_URL = "http://ollama_server:11434"
+OLLAMA_SERVER_URL = os.getenv("BASE_URL")
 BLOG_URLS = [
     "https://developers.google.com/machine-learning/resources/prompt-eng",
 ]
